@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C47094FB2E22D52400076C10 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C47094FA2E22D52400076C10 /* FirebaseAuth */; };
+		C47094FD2E22D52400076C10 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C47094FC2E22D52400076C10 /* FirebaseCore */; };
+		C47094FF2E22D52400076C10 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C47094FE2E22D52400076C10 /* FirebaseFirestore */; };
+		C47095342E22FA8800076C10 /* FirebaseFirestoreCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = C47095332E22FA8800076C10 /* FirebaseFirestoreCombine-Community */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C47094B82E22CAE600076C10 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +36,33 @@
 		C47094C12E22CAE600076C10 /* CETIAssistAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CETIAssistAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C47095232E22D70B00076C10 /* Exceptions for "CETIAssistApp" folder in "CETIAssistApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FirebaseBackend/firestore.rules,
+			);
+			target = C47094A62E22CAE300076C10 /* CETIAssistApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		C47095242E22D70B00076C10 /* Exceptions for "CETIAssistApp" folder in "Compile Sources" phase from "CETIAssistApp" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = C47094A32E22CAE300076C10 /* Sources */;
+			membershipExceptions = (
+				FirebaseBackend/firestore.rules,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C47094A92E22CAE300076C10 /* CETIAssistApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C47095232E22D70B00076C10 /* Exceptions for "CETIAssistApp" folder in "CETIAssistApp" target */,
+				C47095242E22D70B00076C10 /* Exceptions for "CETIAssistApp" folder in "Compile Sources" phase from "CETIAssistApp" target */,
+			);
 			path = CETIAssistApp;
 			sourceTree = "<group>";
 		};
@@ -52,6 +83,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C47094FD2E22D52400076C10 /* FirebaseCore in Frameworks */,
+				C47095342E22FA8800076C10 /* FirebaseFirestoreCombine-Community in Frameworks */,
+				C47094FB2E22D52400076C10 /* FirebaseAuth in Frameworks */,
+				C47094FF2E22D52400076C10 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +147,10 @@
 			);
 			name = CETIAssistApp;
 			packageProductDependencies = (
+				C47094FA2E22D52400076C10 /* FirebaseAuth */,
+				C47094FC2E22D52400076C10 /* FirebaseCore */,
+				C47094FE2E22D52400076C10 /* FirebaseFirestore */,
+				C47095332E22FA8800076C10 /* FirebaseFirestoreCombine-Community */,
 			);
 			productName = CETIAssistApp;
 			productReference = C47094A72E22CAE300076C10 /* CETIAssistApp.app */;
@@ -195,6 +234,9 @@
 			);
 			mainGroup = C470949E2E22CAE300076C10;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C47094A82E22CAE300076C10 /* Products */;
 			projectDirPath = "";
@@ -409,7 +451,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Ceti.CETIAssistApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceti.CETIAssistApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -438,7 +480,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Ceti.CETIAssistApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceti.CETIAssistApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -558,6 +600,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C47094FA2E22D52400076C10 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C47094FC2E22D52400076C10 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		C47094FE2E22D52400076C10 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		C47095332E22FA8800076C10 /* FirebaseFirestoreCombine-Community */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C47094F92E22D52400076C10 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseFirestoreCombine-Community";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C470949F2E22CAE300076C10 /* Project object */;
 }

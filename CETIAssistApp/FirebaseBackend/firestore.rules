@@ -1,0 +1,29 @@
+//
+//  firestore.rules.swift
+//  CETIAssistApp
+//
+//  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
+//
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    match /availability/{availabilityId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                   request.auth.uid == request.resource.data.professorId;
+    }
+
+    match /reservations/{reservationId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                   request.auth.uid == request.resource.data.studentId;
+    }
+  }
+}

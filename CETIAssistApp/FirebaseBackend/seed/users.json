@@ -1,0 +1,21 @@
+[
+  {
+    "documentId": "uid_alumno_1",
+    "fields": {
+      "name": { "stringValue": "Juan Pérez" },
+      "email": { "stringValue": "a21310262@ceti.mx" },
+      "role": { "stringValue": "alumno" },
+      "createdAt": { "timestampValue": "2025-07-10T12:00:00Z" }
+    }
+  },
+  {
+    "documentId": "uid_profesor_1",
+    "fields": {
+      "name": { "stringValue": "Dra. Marta López" },
+      "email": { "stringValue": "marta.lopez@ceti.mx" },
+      "role": { "stringValue": "profesor" },
+      "createdAt": { "timestampValue": "2025-07-10T12:05:00Z" }
+    }
+  }
+]
+
