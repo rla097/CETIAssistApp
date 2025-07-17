@@ -8,49 +8,47 @@
 import SwiftUI
 
 struct CalendarView: View {
-    @StateObject private var calendarVM = CalendarViewModel()
     @EnvironmentObject var authViewModel: AuthViewModel
-
-    @State private var selectedAvailability: Availability?
-    @State private var showDetail = false
+    @StateObject private var viewModel = CalendarViewModel()
 
     var body: some View {
-        NavigationView {
-            List(calendarVM.availabilities) { availability in
-                Button(action: {
-                    selectedAvailability = availability
-                    showDetail = true
-                }) {
-                    HStack {
+        VStack {
+            Text("Calendario de asesorías")
+                .font(.title2)
+                .bold()
+                .padding(.top)
+
+            if viewModel.isLoading {
+                ProgressView("Cargando asesorías...")
+                    .padding()
+            } else if let error = viewModel.errorMessage {
+                ErrorView(message: error, retryAction: {
+                    viewModel.fetchAvailability(for: authViewModel.userRole)
+                })
+            } else if viewModel.availabilityList.isEmpty {
+                EmptyStateView(
+                    title: "Sin asesorías disponibles",
+                    message: "Actualmente no hay horarios publicados para asesorías.",
+                    iconName: "calendar.badge.exclamationmark"
+                )
+            } else {
+                List(viewModel.availabilityList) { availability in
+                    NavigationLink(destination: AvailabilityDetailView(availability: availability)) {
                         VStack(alignment: .leading) {
-                            Text(availability.date)
-                                .font(.headline)
-                            Text("\(availability.startTime) - \(availability.endTime)")
-                                .font(.subheadline)
+                            Text("Fecha: \(availability.date)")
+                            Text("Hora: \(availability.startTime) - \(availability.endTime)")
+                            Text("Profesor: \(availability.professorName)")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        if availability.isBooked {
-                            Text("No disponible")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                        } else {
-                            Text("Disponible")
-                                .foregroundColor(.green)
-                                .font(.caption)
-                        }
+                        .padding(.vertical, 4)
                     }
                 }
             }
-            .navigationTitle("Calendario semanal")
-            .onAppear {
-                calendarVM.fetchAvailabilities()
-            }
-            .sheet(isPresented: $showDetail) {
-                if let availability = selectedAvailability {
-                    AvailabilityDetailView(availability: availability)
-                        .environmentObject(authViewModel)
-                }
-            }
+        }
+        .padding()
+        .onAppear {
+            viewModel.fetchAvailability(for: authViewModel.userRole)
         }
     }
 }

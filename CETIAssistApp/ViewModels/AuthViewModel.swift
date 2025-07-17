@@ -12,6 +12,21 @@ import FirebaseFirestore
 enum UserRole {
     case alumno
     case profesor
+
+    var rawValue: String {
+        switch self {
+        case .alumno: return "alumno"
+        case .profesor: return "profesor"
+        }
+    }
+
+    init?(from string: String) {
+        switch string.lowercased() {
+        case "alumno": self = .alumno
+        case "profesor": self = .profesor
+        default: return nil
+        }
+    }
 }
 
 class AuthViewModel: ObservableObject {
@@ -19,20 +34,22 @@ class AuthViewModel: ObservableObject {
     @Published var userRole: UserRole? = nil
     @Published var isLoading: Bool = true
 
-    private var db = Firestore.firestore()
+    private var db = FirebaseManager.shared.firestore
+    private var auth = FirebaseManager.shared.auth
     private var authListener: AuthStateDidChangeListenerHandle?
 
     init() {
         listenToAuthState()
     }
 
-    // Escuchar cambios en la sesión de Firebase Auth
+    // Escuchar cambios de sesión
     private func listenToAuthState() {
         isLoading = true
 
-        authListener = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
+        authListener = auth.addStateDidChangeListener { [weak self] auth, user in
             guard let self = self else { return }
             self.user = user
+
             if let user = user {
                 self.fetchUserRole(uid: user.uid)
             } else {
@@ -49,26 +66,61 @@ class AuthViewModel: ObservableObject {
         docRef.getDocument { [weak self] document, error in
             guard let self = self else { return }
 
-            if let document = document, document.exists {
-                let data = document.data()
-                if let role = data?["role"] as? String {
-                    if role == "alumno" {
-                        self.userRole = .alumno
-                    } else if role == "profesor" {
-                        self.userRole = .profesor
-                    }
-                }
+            if let document = document, document.exists,
+               let data = document.data(),
+               let roleString = data["role"] as? String,
+               let role = UserRole(from: roleString) {
+                self.userRole = role
             } else {
-                print("⚠️ Usuario no encontrado en Firestore")
+                print("⚠️ Usuario no encontrado o sin rol válido")
             }
+
             self.isLoading = false
         }
     }
 
-    // Método para cerrar sesión (llamado desde la vista)
-    func logout() {
+    // Registro de usuario
+    func register(email: String, password: String, displayName: String, role: UserRole, completion: @escaping (Bool, Error?) -> Void) {
+        auth.createUser(withEmail: email, password: password) { result, error in
+            if let error = error {
+                completion(false, error)
+                return
+            }
+
+            guard let user = result?.user else {
+                completion(false, nil)
+                return
+            }
+
+            // Guardar nombre en Firebase Auth
+            let changeRequest = user.createProfileChangeRequest()
+            changeRequest.displayName = displayName
+            changeRequest.commitChanges { _ in }
+
+            // Datos a guardar en Firestore
+            let userData: [String: Any] = [
+                "uid": user.uid,
+                "email": email,
+                "displayName": displayName,
+                "role": role.rawValue
+            ]
+
+            self.db.collection("users").document(user.uid).setData(userData) { err in
+                if let err = err {
+                    print("❌ Error al guardar en Firestore: \(err.localizedDescription)")
+                    completion(false, err)
+                } else {
+                    print("✅ Usuario registrado con éxito")
+                    completion(true, nil)
+                }
+            }
+        }
+    }
+
+    // Cerrar sesión
+    func signOut() {
         do {
-            try Auth.auth().signOut()
+            try auth.signOut()
             self.user = nil
             self.userRole = nil
         } catch {
@@ -77,9 +129,8 @@ class AuthViewModel: ObservableObject {
     }
 
     deinit {
-        // Limpia el listener cuando se destruye el ViewModel
         if let handle = authListener {
-            Auth.auth().removeStateDidChangeListener(handle)
+            auth.removeStateDidChangeListener(handle)
         }
     }
 }

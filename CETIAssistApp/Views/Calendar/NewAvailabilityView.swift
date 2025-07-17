@@ -13,7 +13,7 @@ struct NewAvailabilityView: View {
 
     @State private var selectedDate = Date()
     @State private var startTime = Date()
-    @State private var endTime = Date().addingTimeInterval(3600) // +1 hora por defecto
+    @State private var endTime = Date().addingTimeInterval(3600)
 
     @State private var errorMessage: String?
     @State private var isSaving = false
@@ -66,9 +66,11 @@ struct NewAvailabilityView: View {
 
     private func saveAvailability() {
         guard let professorId = authViewModel.user?.uid else {
-            errorMessage = "Error al obtener ID de usuario."
+            errorMessage = "No se encontró tu sesión."
             return
         }
+
+        let professorName = authViewModel.user?.displayName ?? "Profesor"
 
         guard startTime < endTime else {
             errorMessage = "La hora de inicio debe ser anterior a la de fin."
@@ -78,34 +80,30 @@ struct NewAvailabilityView: View {
         errorMessage = nil
         isSaving = true
 
+        // Formatear fecha
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: selectedDate)
+
         let hourFormatter = DateFormatter()
         hourFormatter.dateFormat = "HH:mm"
-
-        let dateString = dateFormatter.string(from: selectedDate)
         let startString = hourFormatter.string(from: startTime)
         let endString = hourFormatter.string(from: endTime)
 
-        // Crear la nueva disponibilidad
-        let newAvailability = Availability(
-            id: UUID().uuidString,               // Generamos un id temporal (Firestore lo reemplazará)
+        // Publicar disponibilidad
+        availabilityViewModel.publishAvailability(
             professorId: professorId,
-            professorName: authViewModel.user?.displayName ?? "", // O cualquier nombre que tengas
+            professorName: professorName,
             date: dateString,
             startTime: startString,
-            endTime: endString,
-            isBooked: false,
-            studentId: nil
-        )
-
-        availabilityViewModel.addAvailability(newAvailability) { success in
+            endTime: endString
+        ) { success, error in
             DispatchQueue.main.async {
-                self.isSaving = false
-                if success {
-                    dismiss()
+                isSaving = false
+                if let error = error {
+                    errorMessage = error.localizedDescription
                 } else {
-                    self.errorMessage = "No se pudo publicar la disponibilidad."
+                    dismiss()
                 }
             }
         }

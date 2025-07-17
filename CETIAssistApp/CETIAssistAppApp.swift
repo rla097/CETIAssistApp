@@ -12,9 +12,8 @@ import Firebase
 struct CETIAssistApp: App {
     @StateObject private var authViewModel = AuthViewModel()
 
-    // Inicializar Firebase
     init() {
-        FirebaseApp.configure()
+        FirebaseApp.configure() // ✅ SOLO AQUÍ
     }
 
     var body: some Scene {
@@ -34,7 +33,6 @@ struct CETIAssistApp: App {
                         ProfessorHomeView()
                             .environmentObject(authViewModel)
                     case .none:
-                        // Fallback por si aún no se detecta rol
                         LoadingView()
                     }
                 }
@@ -42,4 +40,3 @@ struct CETIAssistApp: App {
         }
     }
 }
-

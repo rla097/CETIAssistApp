@@ -10,63 +10,68 @@ import SwiftUI
 struct AvailabilityDetailView: View {
     let availability: Availability
     @EnvironmentObject var authViewModel: AuthViewModel
-    @ObservedObject var reservationViewModel = ReservationViewModel()
+    @StateObject private var reservationViewModel = ReservationViewModel()
+
     @Environment(\.dismiss) var dismiss
-    
-    @State private var isLoading = false
-    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Profesor: \(availability.professorName ?? "Desconocido")")
+            Text("Asesoría con \(availability.professorName)")
                 .font(.title2)
-            
-            Text("Fecha: \(availability.date)")
-            Text("Hora: \(availability.startTime) - \(availability.endTime)")
-            
-            if availability.isBooked {
-                Text("Esta asesoría ya está reservada")
-                    .foregroundColor(.red)
-            } else {
-                if isLoading {
-                    ProgressView()
-                } else {
-                    Button("Reservar asesoría") {
-                        reservarAsesoria()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                .bold()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("📅 Fecha: \(availability.date)")
+                Text("🕒 Hora: \(availability.startTime) - \(availability.endTime)")
+                Text("📌 Estado: \(availability.isAvailable ? "Disponible" : "Reservada")")
+                    .foregroundColor(availability.isAvailable ? .green : .gray)
             }
-            
-            if let error = errorMessage {
+            .padding()
+
+            if let error = reservationViewModel.errorMessage {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .padding()
             }
-            
+
+            if availability.isAvailable {
+                Button(action: reserve) {
+                    if reservationViewModel.isReserving {
+                        ProgressView()
+                    } else {
+                        Text("Reservar asesoría")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                }
+                .padding(.horizontal)
+            } else {
+                Text("Esta asesoría ya fue reservada.")
+                    .foregroundColor(.secondary)
+            }
+
             Spacer()
         }
         .padding()
-        .navigationTitle("Detalles de asesoría")
+        .navigationTitle("Detalle")
     }
 
-    private func reservarAsesoria() {
+    private func reserve() {
         guard let studentId = authViewModel.user?.uid else {
-            errorMessage = "No se pudo obtener el ID del alumno."
+            reservationViewModel.errorMessage = "No se pudo obtener el usuario actual."
             return
         }
-        
-        errorMessage = nil
-        isLoading = true
-        
-        reservationViewModel.reserve(availability: availability, studentId: studentId) { success in
-            DispatchQueue.main.async {
-                isLoading = false
-                if success {
-                    dismiss()
-                } else {
-                    errorMessage = reservationViewModel.errorMessage ?? "Error desconocido al reservar."
-                }
+
+        reservationViewModel.reserveAvailability(
+            availabilityId: availability.id,
+            studentId: studentId
+        ) { success, error in
+            if success {
+                dismiss()
             }
         }
     }

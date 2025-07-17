@@ -9,62 +9,69 @@ import Foundation
 import FirebaseFirestore
 
 class CalendarViewModel: ObservableObject {
-    private let db = Firestore.firestore()
-
-    @Published var availabilities: [Availability] = []
-    @Published var isLoading = false
+    @Published var availabilityList: [Availability] = []
+    @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
-    // Cargar todas las disponibilidades o las filtradas por profesor (opcional)
-    func fetchAvailabilities(professorId: String? = nil) {
+    private let db = FirebaseManager.shared.firestore
+
+    func fetchAvailability(for role: UserRole?) {
         isLoading = true
         errorMessage = nil
 
-        var query: Query = db.collection("availabilities")
+        db.collection("availability")
+            .order(by: "date", descending: false)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
 
-        if let professorId = professorId {
-            query = query.whereField("professorId", isEqualTo: professorId)
-        }
+                DispatchQueue.main.async {
+                    self.isLoading = false
 
-        query.getDocuments { [weak self] snapshot, error in
-            DispatchQueue.main.async {
-                self?.isLoading = false
-
-                if let error = error {
-                    self?.errorMessage = "Error al cargar disponibilidades: \(error.localizedDescription)"
-                    self?.availabilities = []
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    self?.availabilities = []
-                    return
-                }
-
-                self?.availabilities = documents.compactMap { doc -> Availability? in
-                    let data = doc.data()
-                    guard
-                        let professorId = data["professorId"] as? String,
-                        let date = data["date"] as? String,
-                        let startTime = data["startTime"] as? String,
-                        let endTime = data["endTime"] as? String,
-                        let isBooked = data["isBooked"] as? Bool
-                    else {
-                        return nil
+                    if let error = error {
+                        self.errorMessage = "Error al cargar asesorías: \(error.localizedDescription)"
+                        return
                     }
 
-                    return Availability(
-                        id: doc.documentID,
-                        professorId: professorId,
-                        professorName: data["professorName"] as? String,
-                        date: date,
-                        startTime: startTime,
-                        endTime: endTime,
-                        isBooked: isBooked,
-                        studentId: data["studentId"] as? String
-                    )
+                    guard let documents = snapshot?.documents else {
+                        self.errorMessage = "No se encontraron documentos."
+                        return
+                    }
+
+                    var tempList: [Availability] = []
+
+                    for doc in documents {
+                        let data = doc.data()
+                        guard
+                            let professorId = data["professorId"] as? String,
+                            let professorName = data["professorName"] as? String,
+                            let date = data["date"] as? String,
+                            let startTime = data["startTime"] as? String,
+                            let endTime = data["endTime"] as? String,
+                            let isAvailable = data["isAvailable"] as? Bool
+                        else {
+                            continue
+                        }
+
+                        // Mostrar solo las disponibles a los alumnos
+                        if role == .alumno && !isAvailable {
+                            continue
+                        }
+
+                        let availability = Availability(
+                            id: doc.documentID,
+                            professorId: professorId,
+                            professorName: professorName,
+                            date: date,
+                            startTime: startTime,
+                            endTime: endTime,
+                            isAvailable: isAvailable
+                        )
+
+                        tempList.append(availability)
+                    }
+
+                    self.availabilityList = tempList
                 }
             }
-        }
     }
 }

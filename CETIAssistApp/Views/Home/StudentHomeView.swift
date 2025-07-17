@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StudentHomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var calendarViewModel = CalendarViewModel()
 
     var body: some View {
         NavigationView {
@@ -16,15 +17,17 @@ struct StudentHomeView: View {
                 Text("Bienvenido, Alumno")
                     .font(.largeTitle)
                     .bold()
-                    .padding()
+                    .padding(.top)
 
+                // Calendario de asesorías
                 CalendarView()
-                    .environmentObject(authViewModel) // Si CalendarView usa AuthViewModel
+                    .environmentObject(authViewModel)
+                    .environmentObject(calendarViewModel)
 
                 Spacer()
 
                 Button(action: {
-                    authViewModel.logout()
+                    authViewModel.signOut()
                 }) {
                     Text("Cerrar sesión")
                         .foregroundColor(.red)
@@ -36,7 +39,11 @@ struct StudentHomeView: View {
                         .padding(.horizontal)
                 }
             }
+            .padding()
             .navigationTitle("Inicio Alumno")
+            .onAppear {
+                calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+            }
         }
     }
 }
@@ -44,7 +51,6 @@ struct StudentHomeView: View {
 struct StudentHomeView_Previews: PreviewProvider {
     static var previews: some View {
         StudentHomeView()
-            .environmentObject(AuthViewModel()) // Proveer el EnvironmentObject para preview
+            .environmentObject(AuthViewModel())
     }
 }
-

@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import FirebaseAuth
 
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -30,12 +29,13 @@ struct LoginView: View {
                 .cornerRadius(10)
 
             SecureField("Contraseña", text: $password)
+                .textContentType(.password)
                 .padding()
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
 
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
+            if let error = errorMessage {
+                Text(error)
                     .foregroundColor(.red)
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
@@ -61,7 +61,6 @@ struct LoginView: View {
     }
 
     private func login() {
-        // Validaciones
         guard email.lowercased().hasSuffix("@ceti.mx") else {
             errorMessage = "El correo debe terminar en @ceti.mx"
             return
@@ -75,8 +74,7 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
 
-        // Login con Firebase
-        Auth.auth().signIn(withEmail: email, password: password) { result, error in
+        FirebaseManager.shared.auth.signIn(withEmail: email, password: password) { result, error in
             DispatchQueue.main.async {
                 isLoading = false
 
@@ -84,7 +82,7 @@ struct LoginView: View {
                     errorMessage = "Error al iniciar sesión: \(error.localizedDescription)"
                 } else {
                     errorMessage = nil
-                    // El cambio de vista lo maneja automáticamente AuthViewModel
+                    // El cambio de vista será manejado por AuthViewModel automáticamente
                 }
             }
         }
