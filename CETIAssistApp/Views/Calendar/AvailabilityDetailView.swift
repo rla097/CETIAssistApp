@@ -13,6 +13,7 @@ struct AvailabilityDetailView: View {
     @StateObject private var reservationViewModel = ReservationViewModel()
 
     @Environment(\.dismiss) var dismiss
+    @State private var showSuccessAlert = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -45,19 +46,28 @@ struct AvailabilityDetailView: View {
                             .padding()
                             .background(Color.blue)
                             .foregroundColor(.white)
-                            .cornerRadius(10)
+                            .cornerRadius(8)
                     }
                 }
-                .padding(.horizontal)
+                .padding()
             } else {
-                Text("Esta asesoría ya fue reservada.")
+                Text("Esta asesoría ya ha sido reservada.")
                     .foregroundColor(.secondary)
+                    .padding()
             }
-
-            Spacer()
         }
         .padding()
-        .navigationTitle("Detalle")
+        .navigationTitle("Detalle de Asesoría")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert(isPresented: $showSuccessAlert) {
+            Alert(
+                title: Text("Éxito"),
+                message: Text("Asesoría agendada exitosamente."),
+                dismissButton: .default(Text("OK")) {
+                    dismiss()
+                }
+            )
+        }
     }
 
     private func reserve() {
@@ -71,7 +81,7 @@ struct AvailabilityDetailView: View {
             studentId: studentId
         ) { success, error in
             if success {
-                dismiss()
+                showSuccessAlert = true
             }
         }
     }
