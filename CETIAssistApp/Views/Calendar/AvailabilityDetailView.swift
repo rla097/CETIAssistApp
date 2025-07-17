@@ -36,7 +36,7 @@ struct AvailabilityDetailView: View {
                     .padding()
             }
 
-            if availability.isAvailable {
+            if availability.isAvailable && authViewModel.userRole == UserRole.alumno {
                 Button(action: reserve) {
                     if reservationViewModel.isReserving {
                         ProgressView()
@@ -46,18 +46,24 @@ struct AvailabilityDetailView: View {
                             .padding()
                             .background(Color.blue)
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .cornerRadius(10)
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+            } else if availability.isAvailable && authViewModel.userRole == UserRole.profesor {
+                Text("Esta es una asesoría que tú publicaste.")
+                    .foregroundColor(.secondary)
+                    .padding()
             } else {
-                Text("Esta asesoría ya ha sido reservada.")
+                Text("Esta asesoría ya fue reservada.")
                     .foregroundColor(.secondary)
                     .padding()
             }
+
+            Spacer()
         }
         .padding()
-        .navigationTitle("Detalle de Asesoría")
+        .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .alert(isPresented: $showSuccessAlert) {
             Alert(
