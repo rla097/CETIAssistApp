@@ -13,62 +13,76 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Encabezado
             HStack {
-                Text("Asesorías disponibles")
-                    .font(.title3.weight(.semibold))
-
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Asesorías disponibles")
+                        .font(.title2).bold()
+                    if let error = calendarViewModel.errorMessage, !error.isEmpty {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundColor(.red)
+                    }
+                }
                 Spacer()
-
-                // Recargar manualmente
                 Button {
-                    calendarViewModel.fetchAvailability(
-                        for: authViewModel.userRole,
-                        alsoDeletePast: true   // o false si no quieres borrar desde cliente
-                    )
+                    calendarViewModel.startListening(alsoDeletePast: true)
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .imageScale(.large)
+                        .padding(8)
                 }
-                .accessibilityLabel("Recargar asesorías")
+                .accessibilityLabel("Actualizar")
             }
+            .padding(.horizontal)
 
-            if calendarViewModel.isLoading {
-                HStack {
-                    ProgressView()
-                    Text("Cargando asesorías…")
+            // Contenido
+            Group {
+                if calendarViewModel.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Cargando asesorías…")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+                } else if calendarViewModel.availabilities.isEmpty {
+                    EmptyStateView(
+                        title: "No hay asesorías por ahora",
+                        message: "Vuelve a intentar más tarde o actualiza."
+                    )
+                    .padding(.horizontal)
+                } else {
+                    List(calendarViewModel.availabilities) { item in
+                        AvailabilityRow(item: item)
+                    }
+                    .listStyle(.insetGrouped)
+                    .refreshable {
+                        calendarViewModel.startListening(alsoDeletePast: true)
+                    }
                 }
-                .padding(.vertical, 8)
-            } else if let error = calendarViewModel.errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.callout)
-            } else if calendarViewModel.availabilities.isEmpty {
-                Text("No hay asesorías disponibles desde hoy.")
-                    .foregroundColor(.secondary)
-                    .font(.callout)
-            } else {
-                // 👇 OJO: sin '$' y usando 'availabilities' (no 'availabilityList')
-                List(calendarViewModel.availabilities, id: \.id) { item in
-                    AvailabilityRow(item: item)
-                }
-                .listStyle(.insetGrouped)
             }
         }
         .padding(.vertical, 8)
     }
 }
 
-// MARK: - Celda/Row de ejemplo (ajústala a tu diseño)
+// MARK: - Celda de lista
 private struct AvailabilityRow: View {
     let item: Availability
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Asumo que tu Availability tiene estas propiedades:
-            // professorName (String), date (String "yyyy-MM-dd"), startTime (String ISO), endTime (String ISO), isAvailable (Bool)
+            // Profesor
             Text(item.professorName)
                 .font(.headline)
 
-            Text("\(item.date) • \(hora(from: item.startTime)) – \(hora(from: item.endTime))")
+            // NEW: Materia
+            Text(item.subject)
+                .font(.subheadline)
+                .bold()
+
+            // Fecha y horario
+            Text("\(item.date) • \(item.startTime) – \(item.endTime)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -79,20 +93,5 @@ private struct AvailabilityRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-
-    // Extrae solo la hora de un ISO, p. ej. "10:30"
-    private func hora(from isoString: String) -> String {
-        // Intenta parsear ISO8601 → Date
-        let iso = ISO8601DateFormatter()
-        if let date = iso.date(from: isoString) {
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.timeStyle = .short
-            f.dateStyle = .none
-            return f.string(from: date)
-        }
-        // Si falla el parseo, regresa el string crudo
-        return isoString
     }
 }

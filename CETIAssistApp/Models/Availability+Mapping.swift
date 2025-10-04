@@ -9,46 +9,38 @@ import Foundation
 import FirebaseFirestore
 
 extension Availability {
-    /// Construye Availability desde doc con `start`/`end` (Timestamp) + compat.
+    /// Construye Availability desde doc con `start`/`end` (Timestamp) + compatibilidad de strings.
     static func from(document: DocumentSnapshot) -> Availability? {
         let data = document.data() ?? [:]
 
         // Requiere `start: Timestamp`
-        guard let startTS = data["start"] as? Timestamp else { return nil }
-        let start = startTS.dateValue()
+        guard let startTS = data["start"] as? Timestamp,
+              let endTS   = data["end"] as? Timestamp else {
+            return nil
+        }
 
-        // `end` si existe; si no, calcula con `duration` en minutos, si está
-        let end: Date = {
-            if let endTS = data["end"] as? Timestamp { return endTS.dateValue() }
-            if let dur = (data["duration"] as? Int) ?? (data["duracion"] as? Int) {
-                return Calendar.current.date(byAdding: .minute, value: dur, to: start) ?? start
-            }
-            return start
-        }()
+        let startDate = startTS.dateValue()
+        let endDate   = endTS.dateValue()
 
-        // Formateadores para tu `Availability` (strings)
-        let day = DateFormatter()
-        day.calendar = Calendar(identifier: .gregorian)
-        day.locale   = Locale(identifier: "en_US_POSIX")
-        day.timeZone = TimeZone(secondsFromGMT: 0)
-        day.dateFormat = "yyyy-MM-dd"
+        let dfDate  = DateFormatter()
+        dfDate.locale = .current
+        dfDate.timeZone = .current
+        dfDate.dateFormat = "yyyy-MM-dd"
 
-        let hm = DateFormatter()
-        hm.calendar = Calendar(identifier: .gregorian)
-        hm.locale   = Locale(identifier: "en_US_POSIX")
-        hm.timeZone = TimeZone.current
-        hm.dateFormat = "HH:mm"
+        let dfTime  = DateFormatter()
+        dfTime.locale = .current
+        dfTime.timeZone = .current
+        dfTime.dateFormat = "HH:mm"
 
-        let dateStr  = day.string(from: start)
-        let startStr = hm.string(from: start)
-        let endStr   = hm.string(from: end)
+        // Prioriza campos string si existen (compat)
+        let dateStr  = (data["date"] as? String) ?? dfDate.string(from: startDate)
+        let startStr = (data["startTime"] as? String) ?? dfTime.string(from: startDate)
+        let endStr   = (data["endTime"] as? String) ?? dfTime.string(from: endDate)
 
-        let professorId   = (data["professorId"] as? String) ?? (data["profesorId"] as? String) ?? ""
-        let professorName = (data["professorName"] as? String)
-                          ?? (data["profesorNombre"] as? String)
-                          ?? (data["asesor"] as? String)
-                          ?? "Profesor"
+        let professorId   = (data["professorId"] as? String) ?? ""
+        let professorName = (data["professorName"] as? String) ?? "Profesor"
         let isAvailable   = (data["isAvailable"] as? Bool) ?? true
+        let subject       = (data["subject"] as? String) ?? "Sin materia" // NEW
 
         return Availability(
             id: document.documentID,
@@ -57,7 +49,8 @@ extension Availability {
             date: dateStr,          // "yyyy-MM-dd"
             startTime: startStr,    // "HH:mm"
             endTime: endStr,        // "HH:mm"
-            isAvailable: isAvailable
+            isAvailable: isAvailable,
+            subject: subject        // NEW
         )
     }
 }

@@ -15,4 +15,5 @@ struct Availability: Identifiable {
     let startTime: String
     let endTime: String
     let isAvailable: Bool
+    let subject: String
 }

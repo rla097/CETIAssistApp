@@ -21,7 +21,7 @@ struct StudentHomeView: View {
                     .font(.largeTitle.bold())
                     .padding(.top)
 
-                // Indicadores simples de carga / error (opcional)
+                // Indicadores simples de carga / error
                 if calendarViewModel.isLoading {
                     ProgressView("Cargando asesorías...")
                         .padding(.vertical)
@@ -32,7 +32,7 @@ struct StudentHomeView: View {
                         .padding(.horizontal)
                 }
 
-                // Calendario de asesorías (tu vista existente)
+                // Tu calendario/listado
                 CalendarView()
                     .environmentObject(authViewModel)
                     .environmentObject(calendarViewModel)
@@ -55,12 +55,12 @@ struct StudentHomeView: View {
             .padding()
             .navigationTitle("Inicio Alumno")
             .onAppear {
-                // Muestra solo desde hoy en adelante y, si alsoDeletePast == true,
-                // intentará borrar asesorías pasadas (según permisos de Firestore).
-                calendarViewModel.fetchAvailability(
-                    for: authViewModel.userRole,
-                    alsoDeletePast: alsoDeletePast
-                )
+                // 🔴 Suscripción en tiempo real
+                calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
+            }
+            .onDisappear {
+                // 🟢 Liberar listener para evitar fugas
+                calendarViewModel.stopListening()
             }
         }
     }
