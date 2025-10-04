@@ -12,57 +12,95 @@ struct CalendarView: View {
     @State private var modalityFilter: ModalityFilter = .all
 
     var body: some View {
-        ZStack {
-            // Fondo sutil
-            LinearGradient(
-                colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        ScrollViewReader { proxy in
+            ZStack {
+                // Fondo sutil
+                LinearGradient(
+                    colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Filtro por modalidad
-                Picker("Modalidad", selection: $modalityFilter) {
-                    ForEach(ModalityFilter.allCases) { f in
-                        Text(f.title).tag(f)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-
-                // Contenido principal
-                ScrollView {
-                    LazyVStack(spacing: 14) {
-                        if availabilityVM.isLoading && availabilityVM.items.isEmpty {
-                            ProgressView("Cargando asesorías…")
-                                .frame(maxWidth: .infinity, minHeight: 160)
-                        } else if filteredItems.isEmpty {
-                            EmptyStateCard()
-                                .padding(.horizontal)
-                        } else {
-                            ForEach(filteredItems) { item in
-                                NavigationLink {
-                                    AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
-                                } label: {
-                                    AvailabilityCardRow(availability: item)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal)
-                            }
+                VStack(spacing: 0) {
+                    // Filtro por modalidad
+                    Picker("Modalidad", selection: $modalityFilter) {
+                        ForEach(ModalityFilter.allCases) { f in
+                            Text(f.title).tag(f)
                         }
                     }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
                     .padding(.vertical, 8)
+
+                    // Contenido principal
+                    ScrollView {
+                        LazyVStack(spacing: 14) {
+                            // ⬆️ ancla de inicio
+                            Color.clear.frame(height: 0).id("top")
+
+                            if availabilityVM.isLoading && availabilityVM.items.isEmpty {
+                                ProgressView("Cargando asesorías…")
+                                    .frame(maxWidth: .infinity, minHeight: 160)
+                                    .padding(.horizontal)
+                            } else if filteredItems.isEmpty {
+                                EmptyStateCard().padding(.horizontal)
+                            } else {
+                                ForEach(filteredItems) { item in
+                                    NavigationLink {
+                                        AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
+                                    } label: {
+                                        AvailabilityCardRow(availability: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal)
+                                }
+                            }
+
+                            // ⬇️ ancla de fin
+                            Color.clear.frame(height: 0).id("bottom")
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .refreshable { availabilityVM.startListening(professorId: nil) }
                 }
-                .refreshable { availabilityVM.startListening(professorId: nil) }
+            }
+            .navigationTitle("Asesorías")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { availabilityVM.startListening(professorId: nil) }
+            .onDisappear { availabilityVM.stopListening() }
+
+            // 🔘 Botones de scroll SIEMPRE visibles (ajusta si quieres condicionar por cantidad)
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 10) {
+                        Button {
+                            withAnimation(.easeInOut) { proxy.scrollTo("top", anchor: .top) }
+                        } label: {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 48, height: 48)
+                                .overlay(Image(systemName: "chevron.up").font(.headline))
+                                .overlay(Circle().stroke(Color.primary.opacity(0.12)))
+                                .shadow(radius: 4, y: 2)
+                        }
+
+                        Button {
+                            withAnimation(.easeInOut) { proxy.scrollTo("bottom", anchor: .bottom) }
+                        } label: {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 48, height: 48)
+                                .overlay(Image(systemName: "chevron.down").font(.headline))
+                                .overlay(Circle().stroke(Color.primary.opacity(0.12)))
+                                .shadow(radius: 4, y: 2)
+                        }
+                    }
+                    .padding(.trailing, 16)
+                }
+                .padding(.bottom, 8)   // despega del Home Indicator
             }
         }
-        // ⬇️ Estos títulos funcionan aunque este view no tenga su propio NavigationView,
-        // el contenedor superior (StudentHomeView) los aplicará.
-        .navigationTitle("Asesorías")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { availabilityVM.startListening(professorId: nil) }
-        .onDisappear { availabilityVM.stopListening() }
     }
 
     // Filtro en memoria (el VM ya entrega solo disponibles futuras)
@@ -77,7 +115,7 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - Card Row
+// MARK: - Card Row, Empty, Filtro
 
 private struct AvailabilityCardRow: View {
     let availability: Availability
@@ -134,16 +172,12 @@ private struct AvailabilityCardRow: View {
                 .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08))
         )
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 8, x: 0, y: 3)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(availability.subject), \(availability.modality.displayName), \(availability.date), \(availability.startTime) a \(availability.endTime)")
     }
 
     private var accentColors: [Color] {
         availability.modality == .presencial ? [Color.blue, Color.indigo] : [Color.purple, Color.blue]
     }
 }
-
-// MARK: - Chip pequeño
 
 private struct ChipSmall: View {
     let text: String
@@ -156,8 +190,6 @@ private struct ChipSmall: View {
             .clipShape(Capsule())
     }
 }
-
-// MARK: - Empty State
 
 private struct EmptyStateCard: View {
     var body: some View {
@@ -188,8 +220,6 @@ private struct EmptyStateCard: View {
     }
 }
 
-// MARK: - Filtro de modalidad
-
 private enum ModalityFilter: String, CaseIterable, Identifiable {
     case all, virtual, presencial
     var id: String { rawValue }
@@ -203,6 +233,5 @@ private enum ModalityFilter: String, CaseIterable, Identifiable {
 }
 
 #Preview {
-    // Para previsualizar, envolvemos manualmente en NavigationView
     NavigationView { CalendarView() }
 }
