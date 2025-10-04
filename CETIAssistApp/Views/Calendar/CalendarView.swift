@@ -5,11 +5,21 @@
 //  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
 //
 
+//
+//  CalendarView.swift
+//  CETIAssistApp
+//
+//  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
+//
+
 import SwiftUI
 
 struct CalendarView: View {
     @StateObject private var availabilityVM = AvailabilityViewModel()
     @State private var modalityFilter: ModalityFilter = .all
+
+    // Índice del elemento actualmente enfocado para hacer step arriba/abajo
+    @State private var currentIndex: Int? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -45,11 +55,17 @@ struct CalendarView: View {
                             } else if filteredItems.isEmpty {
                                 EmptyStateCard().padding(.horizontal)
                             } else {
-                                ForEach(filteredItems) { item in
+                                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
                                     NavigationLink {
                                         AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
                                     } label: {
                                         AvailabilityCardRow(availability: item)
+                                            .id(item.id) // importante para scrollTo por elemento
+                                            .background(
+                                                // leve realce del elemento “enfocado”
+                                                (index == (currentIndex ?? -1) ? Color.primary.opacity(0.04) : Color.clear)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                            )
                                     }
                                     .buttonStyle(.plain)
                                     .padding(.horizontal)
@@ -66,16 +82,25 @@ struct CalendarView: View {
             }
             .navigationTitle("Asesorías")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { availabilityVM.startListening(professorId: nil) }
+            .onAppear {
+                availabilityVM.startListening(professorId: nil)
+                // Si ya hay datos al entrar, colocamos foco en el primero
+                if let firstIdx = filteredItems.indices.first {
+                    currentIndex = firstIdx
+                    if let firstId = filteredItems[firstIdx].id as String? {
+                        proxy.scrollTo(firstId, anchor: .top)
+                    }
+                }
+            }
             .onDisappear { availabilityVM.stopListening() }
 
-            // 🔘 Botones de scroll SIEMPRE visibles (ajusta si quieres condicionar por cantidad)
+            // 🔘 Botones de scroll por 1 elemento
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Spacer()
                     VStack(spacing: 10) {
                         Button {
-                            withAnimation(.easeInOut) { proxy.scrollTo("top", anchor: .top) }
+                            stepUp(proxy: proxy)
                         } label: {
                             Circle()
                                 .fill(.ultraThinMaterial)
@@ -84,9 +109,10 @@ struct CalendarView: View {
                                 .overlay(Circle().stroke(Color.primary.opacity(0.12)))
                                 .shadow(radius: 4, y: 2)
                         }
+                        .disabled(isAtTop)
 
                         Button {
-                            withAnimation(.easeInOut) { proxy.scrollTo("bottom", anchor: .bottom) }
+                            stepDown(proxy: proxy)
                         } label: {
                             Circle()
                                 .fill(.ultraThinMaterial)
@@ -95,11 +121,80 @@ struct CalendarView: View {
                                 .overlay(Circle().stroke(Color.primary.opacity(0.12)))
                                 .shadow(radius: 4, y: 2)
                         }
+                        .disabled(isAtBottom)
                     }
                     .padding(.trailing, 16)
                 }
                 .padding(.bottom, 8)   // despega del Home Indicator
             }
+
+            // 🔄 Mantener currentIndex válido cuando cambian los datos
+            // OJO: evitamos el requisito de Equatable en Array usando los IDs (String es Equatable)
+            .onChange(of: availabilityVM.items.map(\.id)) { _ in
+                normalizeCurrentIndexAndAutoFocus(proxy: proxy)
+            }
+            .onChange(of: filteredItems.map(\.id)) { _ in
+                normalizeCurrentIndexAndAutoFocus(proxy: proxy)
+            }
+            .onChange(of: modalityFilter) { _ in
+                // al cambiar filtro, reseteamos al primer elemento (si existe)
+                if let first = filteredItems.indices.first {
+                    currentIndex = first
+                    withAnimation(.easeInOut) {
+                        proxy.scrollTo(filteredItems[first].id, anchor: .top)
+                    }
+                } else {
+                    currentIndex = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers de scroll por elemento
+
+    private var hasItems: Bool { !filteredItems.isEmpty }
+
+    private var isAtTop: Bool {
+        guard hasItems, let idx = currentIndex else { return true }
+        return idx <= filteredItems.startIndex
+    }
+
+    private var isAtBottom: Bool {
+        guard hasItems, let idx = currentIndex else { return true }
+        return idx >= filteredItems.endIndex - 1
+    }
+
+    private func normalizeCurrentIndexAndAutoFocus(proxy: ScrollViewProxy) {
+        guard hasItems else {
+            currentIndex = nil
+            return
+        }
+        // Si el índice actual es nulo o está fuera de rango, colócalo en 0
+        if currentIndex == nil || !(filteredItems.indices).contains(currentIndex!) {
+            currentIndex = filteredItems.indices.first
+        }
+        if let idx = currentIndex {
+            withAnimation(.easeInOut) {
+                proxy.scrollTo(filteredItems[idx].id, anchor: .center)
+            }
+        }
+    }
+
+    private func stepUp(proxy: ScrollViewProxy) {
+        guard hasItems else { return }
+        let next = max((currentIndex ?? 0) - 1, filteredItems.startIndex)
+        currentIndex = next
+        withAnimation(.easeInOut) {
+            proxy.scrollTo(filteredItems[next].id, anchor: .top)
+        }
+    }
+
+    private func stepDown(proxy: ScrollViewProxy) {
+        guard hasItems else { return }
+        let next = min((currentIndex ?? -1) + 1, filteredItems.endIndex - 1)
+        currentIndex = next
+        withAnimation(.easeInOut) {
+            proxy.scrollTo(filteredItems[next].id, anchor: .bottom)
         }
     }
 
