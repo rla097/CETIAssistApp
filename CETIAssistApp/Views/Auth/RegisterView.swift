@@ -73,7 +73,7 @@ struct RegisterView: View {
                     Text("Rol").font(.headline)
                     Picker("Rol", selection: $selectedRole) {
                         Text("Alumno").tag(UserRole.alumno)
-                        Text("Profesor").tag(UserRole.profesor)
+                        Text("Asesor").tag(UserRole.profesor)
                     }
                     .pickerStyle(.segmented)
                 }

@@ -130,7 +130,7 @@ struct NewAvailabilityView: View {
             return
         }
         let uid = user.uid
-        let profName = user.displayName ?? "Profesor"
+        let profName = user.displayName ?? "Asesor"
 
         let subjectChosen: String = availableSubjects.isEmpty
         ? subjectText.trimmingCharacters(in: .whitespacesAndNewlines)

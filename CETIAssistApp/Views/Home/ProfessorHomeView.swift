@@ -25,7 +25,7 @@ struct ProfessorHomeView: View {
         if let email = Auth.auth().currentUser?.email, let user = email.split(separator: "@").first {
             return user.replacingOccurrences(of: ".", with: " ").capitalized
         }
-        return "Profesor"
+        return "Asesor"
     }
     private var firstName: String { fullName.split(separator: " ").first.map(String.init) ?? fullName }
     private var initials: String {
@@ -107,7 +107,7 @@ struct ProfessorHomeView: View {
                     )
                     .ignoresSafeArea()
                 )
-                .navigationTitle("Inicio Profesor")
+                .navigationTitle("Inicio Asesor")
                 .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $isPresentingNewAvailability) {
                     NewAvailabilityView().environmentObject(authViewModel)
