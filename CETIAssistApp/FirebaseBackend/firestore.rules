@@ -9,21 +9,123 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
+    /* ===========================
+       Helpers / Utils
+       =========================== */
+
+    // ¿Hay sesión?
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    match /availability/{availabilityId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-                   request.auth.uid == request.resource.data.professorId;
+    // String no vacío
+    function notEmpty(s) {
+      return s is string && s.size() > 0;
     }
 
-    match /reservations/{reservationId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-                   request.auth.uid == request.resource.data.studentId;
+    // ¿El usuario actual es el dueño del doc (por campo 'professorId')?
+    function isOwner(data) {
+      return isSignedIn() && data.professorId == request.auth.uid;
+    }
+
+    // Valida "yyyy-MM-dd" simple (no comprueba calendario real, pero evita formatos locos)
+    function isYMD(s) {
+      return s is string && s.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    // Valida "HH:mm" 24h básica (00–23 y 00–59)
+    function isHM(s) {
+      return s is string && s.matches('^(?:[01]\\d|2[0-3]):[0-5]\\d$');
+    }
+
+    // Valida modalidad/aula (regla del feature)
+    function modalityOk(newData) {
+      return newData.modality in ['virtual', 'presencial'] &&
+             (
+               // Virtual: aula puede no existir o eliminarse
+               (newData.modality == 'virtual' && (!('aula' in newData) || notEmpty(''))) ||
+               // Presencial: aula string no vacío
+               (newData.modality == 'presencial' && ('aula' in newData) && notEmpty(newData.aula))
+             );
+    }
+
+    // Validación de campos base del documento de asesoría
+    function baseAsesoriaOk(newData) {
+      // Campos obligatorios
+      return
+        // dueños y nombres
+        notEmpty(newData.professorId) &&
+        notEmpty(newData.professorName) &&
+
+        // materia (en tu modelo actual guardas 'subject' y opcionalmente 'subjectLower')
+        notEmpty(newData.subject) &&
+
+        // timestamps para queries
+        (newData.start is timestamp) &&
+        (newData.end   is timestamp) &&
+        (newData.end > newData.start) &&
+
+        // compat strings que hoy usa la UI
+        isYMD(newData.date) &&
+        isHM(newData.startTime) &&
+        isHM(newData.endTime) &&
+
+        // estado booleano
+        (newData.isAvailable is bool);
+    }
+
+    // En updates, evita que cambien el owner
+    function professorIdUnchanged(oldData, newData) {
+      return oldData.professorId == newData.professorId;
+    }
+
+    /* ===========================
+       Colección principal: asesoria(s)
+       =========================== */
+
+    match /asesorias/{id} {
+      // Lectura: cualquier usuario autenticado
+      allow get, list, read: if isSignedIn();
+
+      // Creación: solo el profesor dueño y con datos válidos
+      allow create: if isSignedIn()
+        && isOwner(request.resource.data)
+        && baseAsesoriaOk(request.resource.data)
+        && modalityOk(request.resource.data);
+
+      // Actualización: solo el dueño; no puede cambiar el owner; datos válidos
+      allow update: if isSignedIn()
+        && isOwner(resource.data)                 // El dueño actual del doc
+        && professorIdUnchanged(resource.data, request.resource.data)
+        && baseAsesoriaOk(request.resource.data)
+        && modalityOk(request.resource.data);
+
+      // Borrado: solo el dueño del documento
+      allow delete: if isSignedIn() && isOwner(resource.data);
+    }
+
+    /* ===========================
+       (Ejemplos de otras colecciones comunes)
+       Ajusta/borra si no aplican a tu app.
+       =========================== */
+
+    // Perfiles de usuario (solo lectura para autenticados; escritura solo del propio doc)
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && uid == request.auth.uid;
+      allow update, delete: if isSignedIn() && uid == request.auth.uid;
+    }
+
+    // Catálogo de materias (si lo tienes como colección pública)
+    match /subjects/{subjectId} {
+      allow read: if true; // público de solo lectura
+      // Si hay un panel admin, restringe create/update/delete a tu claim de admin
+      allow create, update, delete: if isSignedIn() && request.auth.token.admin == true;
+    }
+
+    // Cualquier otra colección queda denegada por defecto
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
