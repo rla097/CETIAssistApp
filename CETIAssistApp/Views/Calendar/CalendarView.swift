@@ -5,64 +5,197 @@
 //  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
 //
 
+//
+//  CalendarView.swift
+//  CETIAssistApp
+//
+//  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
+//
+
 import SwiftUI
 
 struct CalendarView: View {
     @StateObject private var availabilityVM = AvailabilityViewModel()
     @State private var modalityFilter: ModalityFilter = .all
 
+    // Índice del elemento actualmente enfocado para hacer step arriba/abajo
+    @State private var currentIndex: Int? = nil
+
     var body: some View {
-        ZStack {
-            // Fondo sutil
-            LinearGradient(
-                colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        ScrollViewReader { proxy in
+            ZStack {
+                // Fondo sutil
+                LinearGradient(
+                    colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Filtro por modalidad
-                Picker("Modalidad", selection: $modalityFilter) {
-                    ForEach(ModalityFilter.allCases) { f in
-                        Text(f.title).tag(f)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-
-                // Contenido principal
-                ScrollView {
-                    LazyVStack(spacing: 14) {
-                        if availabilityVM.isLoading && availabilityVM.items.isEmpty {
-                            ProgressView("Cargando asesorías…")
-                                .frame(maxWidth: .infinity, minHeight: 160)
-                        } else if filteredItems.isEmpty {
-                            EmptyStateCard()
-                                .padding(.horizontal)
-                        } else {
-                            ForEach(filteredItems) { item in
-                                NavigationLink {
-                                    AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
-                                } label: {
-                                    AvailabilityCardRow(availability: item)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal)
-                            }
+                VStack(spacing: 0) {
+                    // Filtro por modalidad
+                    Picker("Modalidad", selection: $modalityFilter) {
+                        ForEach(ModalityFilter.allCases) { f in
+                            Text(f.title).tag(f)
                         }
                     }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
                     .padding(.vertical, 8)
+
+                    // Contenido principal
+                    ScrollView {
+                        LazyVStack(spacing: 14) {
+                            // ⬆️ ancla de inicio
+                            Color.clear.frame(height: 0).id("top")
+
+                            if availabilityVM.isLoading && availabilityVM.items.isEmpty {
+                                ProgressView("Cargando asesorías…")
+                                    .frame(maxWidth: .infinity, minHeight: 160)
+                                    .padding(.horizontal)
+                            } else if filteredItems.isEmpty {
+                                EmptyStateCard().padding(.horizontal)
+                            } else {
+                                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
+                                    NavigationLink {
+                                        AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
+                                    } label: {
+                                        AvailabilityCardRow(availability: item)
+                                            .id(item.id) // importante para scrollTo por elemento
+                                            .background(
+                                                // leve realce del elemento “enfocado”
+                                                (index == (currentIndex ?? -1) ? Color.primary.opacity(0.04) : Color.clear)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal)
+                                }
+                            }
+
+                            // ⬇️ ancla de fin
+                            Color.clear.frame(height: 0).id("bottom")
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .refreshable { availabilityVM.startListening(professorId: nil) }
                 }
-                .refreshable { availabilityVM.startListening(professorId: nil) }
+            }
+            .navigationTitle("Asesorías")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                availabilityVM.startListening(professorId: nil)
+                // Si ya hay datos al entrar, colocamos foco en el primero
+                if let firstIdx = filteredItems.indices.first {
+                    currentIndex = firstIdx
+                    if let firstId = filteredItems[firstIdx].id as String? {
+                        proxy.scrollTo(firstId, anchor: .top)
+                    }
+                }
+            }
+            .onDisappear { availabilityVM.stopListening() }
+
+            // 🔘 Botones de scroll por 1 elemento
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 10) {
+                        Button {
+                            stepUp(proxy: proxy)
+                        } label: {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 48, height: 48)
+                                .overlay(Image(systemName: "chevron.up").font(.headline))
+                                .overlay(Circle().stroke(Color.primary.opacity(0.12)))
+                                .shadow(radius: 4, y: 2)
+                        }
+                        .disabled(isAtTop)
+
+                        Button {
+                            stepDown(proxy: proxy)
+                        } label: {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 48, height: 48)
+                                .overlay(Image(systemName: "chevron.down").font(.headline))
+                                .overlay(Circle().stroke(Color.primary.opacity(0.12)))
+                                .shadow(radius: 4, y: 2)
+                        }
+                        .disabled(isAtBottom)
+                    }
+                    .padding(.trailing, 16)
+                }
+                .padding(.bottom, 8)   // despega del Home Indicator
+            }
+
+            // 🔄 Mantener currentIndex válido cuando cambian los datos
+            // OJO: evitamos el requisito de Equatable en Array usando los IDs (String es Equatable)
+            .onChange(of: availabilityVM.items.map(\.id)) { _ in
+                normalizeCurrentIndexAndAutoFocus(proxy: proxy)
+            }
+            .onChange(of: filteredItems.map(\.id)) { _ in
+                normalizeCurrentIndexAndAutoFocus(proxy: proxy)
+            }
+            .onChange(of: modalityFilter) { _ in
+                // al cambiar filtro, reseteamos al primer elemento (si existe)
+                if let first = filteredItems.indices.first {
+                    currentIndex = first
+                    withAnimation(.easeInOut) {
+                        proxy.scrollTo(filteredItems[first].id, anchor: .top)
+                    }
+                } else {
+                    currentIndex = nil
+                }
             }
         }
-        // ⬇️ Estos títulos funcionan aunque este view no tenga su propio NavigationView,
-        // el contenedor superior (StudentHomeView) los aplicará.
-        .navigationTitle("Asesorías")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { availabilityVM.startListening(professorId: nil) }
-        .onDisappear { availabilityVM.stopListening() }
+    }
+
+    // MARK: - Helpers de scroll por elemento
+
+    private var hasItems: Bool { !filteredItems.isEmpty }
+
+    private var isAtTop: Bool {
+        guard hasItems, let idx = currentIndex else { return true }
+        return idx <= filteredItems.startIndex
+    }
+
+    private var isAtBottom: Bool {
+        guard hasItems, let idx = currentIndex else { return true }
+        return idx >= filteredItems.endIndex - 1
+    }
+
+    private func normalizeCurrentIndexAndAutoFocus(proxy: ScrollViewProxy) {
+        guard hasItems else {
+            currentIndex = nil
+            return
+        }
+        // Si el índice actual es nulo o está fuera de rango, colócalo en 0
+        if currentIndex == nil || !(filteredItems.indices).contains(currentIndex!) {
+            currentIndex = filteredItems.indices.first
+        }
+        if let idx = currentIndex {
+            withAnimation(.easeInOut) {
+                proxy.scrollTo(filteredItems[idx].id, anchor: .center)
+            }
+        }
+    }
+
+    private func stepUp(proxy: ScrollViewProxy) {
+        guard hasItems else { return }
+        let next = max((currentIndex ?? 0) - 1, filteredItems.startIndex)
+        currentIndex = next
+        withAnimation(.easeInOut) {
+            proxy.scrollTo(filteredItems[next].id, anchor: .top)
+        }
+    }
+
+    private func stepDown(proxy: ScrollViewProxy) {
+        guard hasItems else { return }
+        let next = min((currentIndex ?? -1) + 1, filteredItems.endIndex - 1)
+        currentIndex = next
+        withAnimation(.easeInOut) {
+            proxy.scrollTo(filteredItems[next].id, anchor: .bottom)
+        }
     }
 
     // Filtro en memoria (el VM ya entrega solo disponibles futuras)
@@ -77,7 +210,7 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - Card Row
+// MARK: - Card Row, Empty, Filtro
 
 private struct AvailabilityCardRow: View {
     let availability: Availability
@@ -134,16 +267,12 @@ private struct AvailabilityCardRow: View {
                 .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08))
         )
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 8, x: 0, y: 3)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(availability.subject), \(availability.modality.displayName), \(availability.date), \(availability.startTime) a \(availability.endTime)")
     }
 
     private var accentColors: [Color] {
         availability.modality == .presencial ? [Color.blue, Color.indigo] : [Color.purple, Color.blue]
     }
 }
-
-// MARK: - Chip pequeño
 
 private struct ChipSmall: View {
     let text: String
@@ -156,8 +285,6 @@ private struct ChipSmall: View {
             .clipShape(Capsule())
     }
 }
-
-// MARK: - Empty State
 
 private struct EmptyStateCard: View {
     var body: some View {
@@ -188,8 +315,6 @@ private struct EmptyStateCard: View {
     }
 }
 
-// MARK: - Filtro de modalidad
-
 private enum ModalityFilter: String, CaseIterable, Identifiable {
     case all, virtual, presencial
     var id: String { rawValue }
@@ -203,6 +328,5 @@ private enum ModalityFilter: String, CaseIterable, Identifiable {
 }
 
 #Preview {
-    // Para previsualizar, envolvemos manualmente en NavigationView
     NavigationView { CalendarView() }
 }
