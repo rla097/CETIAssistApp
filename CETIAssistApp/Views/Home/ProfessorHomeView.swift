@@ -12,7 +12,7 @@ struct ProfessorHomeView: View {
     @StateObject private var calendarViewModel = CalendarViewModel()
     @State private var isPresentingNewAvailability = false
 
-    // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas
+    // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas.
     private let alsoDeletePast = true
 
     var body: some View {
@@ -23,16 +23,14 @@ struct ProfessorHomeView: View {
                     .bold()
                     .padding(.top)
 
-                // Lista de asesorías propias
+                // Lista de asesorías propias (en vivo)
                 if calendarViewModel.isLoading {
                     ProgressView("Cargando asesorías...")
                         .padding()
                 } else if let error = calendarViewModel.errorMessage {
                     ErrorView(message: error) {
-                        calendarViewModel.fetchAvailability(
-                            for: authViewModel.userRole,
-                            alsoDeletePast: alsoDeletePast
-                        )
+                        // Extra: acción de reintento manual (no necesaria con listener, pero útil)
+                        calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
                     }
                 } else if calendarViewModel.availabilities.isEmpty {
                     EmptyStateView(
@@ -61,9 +59,9 @@ struct ProfessorHomeView: View {
                 Spacer()
 
                 HStack(spacing: 12) {
-                    Button(action: {
+                    Button {
                         isPresentingNewAvailability = true
-                    }) {
+                    } label: {
                         Label("Nueva disponibilidad", systemImage: "plus")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -72,9 +70,9 @@ struct ProfessorHomeView: View {
                             .cornerRadius(10)
                     }
 
-                    Button(action: {
+                    Button {
                         authViewModel.signOut()
-                    }) {
+                    } label: {
                         Label("Cerrar sesión", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -92,10 +90,12 @@ struct ProfessorHomeView: View {
                     .environmentObject(authViewModel)
             }
             .onAppear {
-                calendarViewModel.fetchAvailability(
-                    for: authViewModel.userRole,
-                    alsoDeletePast: alsoDeletePast
-                )
+                // 🔴 Suscripción en tiempo real
+                calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
+            }
+            .onDisappear {
+                // 🟢 Liberar listener para evitar fugas
+                calendarViewModel.stopListening()
             }
         }
     }

@@ -16,15 +16,10 @@ struct CalendarView: View {
             HStack {
                 Text("Asesorías disponibles")
                     .font(.title3.weight(.semibold))
-
                 Spacer()
-
-                // Recargar manualmente
                 Button {
-                    calendarViewModel.fetchAvailability(
-                        for: authViewModel.userRole,
-                        alsoDeletePast: true   // o false si no quieres borrar desde cliente
-                    )
+                    // Reinicia la suscripción (seguro: startListening ya hace stopListening internamente)
+                    calendarViewModel.startListening(alsoDeletePast: true) // o false si no quieres borrar pasadas desde cliente
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -32,7 +27,7 @@ struct CalendarView: View {
             }
 
             if calendarViewModel.isLoading {
-                HStack {
+                HStack(spacing: 8) {
                     ProgressView()
                     Text("Cargando asesorías…")
                 }
@@ -46,29 +41,31 @@ struct CalendarView: View {
                     .foregroundColor(.secondary)
                     .font(.callout)
             } else {
-                // 👇 OJO: sin '$' y usando 'availabilities' (no 'availabilityList')
                 List(calendarViewModel.availabilities, id: \.id) { item in
                     AvailabilityRow(item: item)
                 }
                 .listStyle(.insetGrouped)
+                // Pull to refresh (opcional):
+                .refreshable {
+                    calendarViewModel.startListening(alsoDeletePast: true)
+                }
             }
         }
         .padding(.vertical, 8)
     }
 }
 
-// MARK: - Celda/Row de ejemplo (ajústala a tu diseño)
+// MARK: - Celda de lista
 private struct AvailabilityRow: View {
     let item: Availability
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Asumo que tu Availability tiene estas propiedades:
-            // professorName (String), date (String "yyyy-MM-dd"), startTime (String ISO), endTime (String ISO), isAvailable (Bool)
+            // Ajustado a tu struct Availability
             Text(item.professorName)
                 .font(.headline)
 
-            Text("\(item.date) • \(hora(from: item.startTime)) – \(hora(from: item.endTime))")
+            Text("\(item.date) • \(item.startTime) – \(item.endTime)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -79,20 +76,5 @@ private struct AvailabilityRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-
-    // Extrae solo la hora de un ISO, p. ej. "10:30"
-    private func hora(from isoString: String) -> String {
-        // Intenta parsear ISO8601 → Date
-        let iso = ISO8601DateFormatter()
-        if let date = iso.date(from: isoString) {
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.timeStyle = .short
-            f.dateStyle = .none
-            return f.string(from: date)
-        }
-        // Si falla el parseo, regresa el string crudo
-        return isoString
     }
 }
