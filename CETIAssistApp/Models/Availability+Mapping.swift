@@ -34,7 +34,7 @@ extension Availability {
 
         // Identidad profesor
         let professorId   = (data["professorId"] as? String) ?? ""
-        let professorName = (data["professorName"] as? String) ?? "Profesor"
+        let professorName = (data["professorName"] as? String) ?? "Asesor"
 
         // Materia (acepta dos nombres)
         let subjectAny = (data["subject"] as? String) ?? (data["subjectName"] as? String)
