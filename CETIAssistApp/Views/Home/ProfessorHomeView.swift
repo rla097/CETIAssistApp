@@ -10,7 +10,11 @@ import SwiftUI
 struct ProfessorHomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var calendarViewModel = CalendarViewModel()
+    @StateObject private var availabilityVM = AvailabilityViewModel()   // ✅ VM compartido para el detalle
     @State private var isPresentingNewAvailability = false
+
+    // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas.
+    private let alsoDeletePast = true
 
     var body: some View {
         NavigationView {
@@ -20,23 +24,28 @@ struct ProfessorHomeView: View {
                     .bold()
                     .padding(.top)
 
-                // Lista de asesorías propias
+                // Lista de asesorías propias (en vivo)
                 if calendarViewModel.isLoading {
                     ProgressView("Cargando asesorías...")
                         .padding()
                 } else if let error = calendarViewModel.errorMessage {
                     ErrorView(message: error) {
-                        calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+                        // Extra: acción de reintento manual (no necesaria con listener, pero útil)
+                        calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
                     }
-                } else if calendarViewModel.availabilityList.isEmpty {
+                } else if calendarViewModel.availabilities.isEmpty {
                     EmptyStateView(
                         title: "Sin asesorías publicadas",
                         message: "Publica tu disponibilidad para asesorar a los alumnos.",
                         iconName: "calendar.badge.plus"
                     )
                 } else {
-                    List(calendarViewModel.availabilityList) { availability in
-                        NavigationLink(destination: AvailabilityDetailView(availability: availability)) {
+                    List(calendarViewModel.availabilities, id: \.id) { availability in
+                        NavigationLink(
+                            destination:
+                                // ✅ Pasamos el AvailabilityViewModel requerido por el detalle
+                                AvailabilityDetailView(availability: availability, availabilityVM: availabilityVM)
+                        ) {
                             VStack(alignment: .leading) {
                                 Text("Fecha: \(availability.date)")
                                 Text("Hora: \(availability.startTime) - \(availability.endTime)")
@@ -49,14 +58,15 @@ struct ProfessorHomeView: View {
                             .padding(.vertical, 4)
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
 
                 Spacer()
 
-                HStack {
-                    Button(action: {
+                HStack(spacing: 12) {
+                    Button {
                         isPresentingNewAvailability = true
-                    }) {
+                    } label: {
                         Label("Nueva disponibilidad", systemImage: "plus")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -65,9 +75,9 @@ struct ProfessorHomeView: View {
                             .cornerRadius(10)
                     }
 
-                    Button(action: {
+                    Button {
                         authViewModel.signOut()
-                    }) {
+                    } label: {
                         Label("Cerrar sesión", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -81,11 +91,17 @@ struct ProfessorHomeView: View {
             .padding()
             .navigationTitle("Inicio Profesor")
             .sheet(isPresented: $isPresentingNewAvailability) {
+                // NewAvailabilityView no necesita el AuthViewModel, pero no estorba dejarlo inyectado
                 NewAvailabilityView()
                     .environmentObject(authViewModel)
             }
             .onAppear {
-                calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+                // 🔴 Suscripción en tiempo real del listado del profesor
+                calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
+            }
+            .onDisappear {
+                // 🟢 Liberar listener para evitar fugas
+                calendarViewModel.stopListening()
             }
         }
     }

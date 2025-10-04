@@ -2,13 +2,18 @@
   {
     "documentId": "availability_1",
     "fields": {
-      "professorId": { "stringValue": "uid_profesor_1" },
-      "date": { "stringValue": "2025-07-15" },
-      "startTime": { "stringValue": "10:00" },
-      "endTime": { "stringValue": "11:00" },
-      "isBooked": { "booleanValue": false },
-      "studentId": { "nullValue": null }
+      "professorId":        { "stringValue": "uid_profesor_1" },
+      "date":               { "stringValue": "2025-07-15" },
+      "startTime":          { "stringValue": "10:00" },
+      "endTime":            { "stringValue": "11:00" },
+      "isBooked":           { "booleanValue": false },
+      "studentId":          { "nullValue": null },
+
+      "modality":           { "stringValue": "presencial" },
+      "aula":               { "stringValue": "Aula 205" },
+
+      "subjectId":          { "stringValue": "calculo_1" },
+      "subjectName":        { "stringValue": "Cálculo I" }
     }
   }
 ]
-

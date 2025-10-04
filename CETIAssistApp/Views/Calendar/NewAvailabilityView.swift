@@ -6,106 +6,181 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct NewAvailabilityView: View {
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject private var availabilityViewModel = AvailabilityViewModel()
+    // Ya no dependemos de AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var availabilityVM = AvailabilityViewModel()
 
-    @State private var selectedDate = Date()
-    @State private var startTime = Date()
-    @State private var endTime = Date().addingTimeInterval(3600)
+    // Materias (si pasas lista, Picker; si no, TextField)
+    let availableSubjects: [String]
+    @State private var selectedSubjectIndex: Int = 0
+    @State private var subjectText: String = ""
 
-    @State private var errorMessage: String?
-    @State private var isSaving = false
-    @Environment(\.dismiss) var dismiss
+    // Fecha y horas
+    @State private var selectedDate: Date = Date()
+    @State private var startTime: Date = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var endTime: Date = Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: Date()) ?? Date()
+
+    // Modalidad / Aula
+    @State private var modality: Modality = .virtual
+    @State private var aula: String = ""
+
+    // UI state
+    @State private var isSaving: Bool = false
+    @State private var showAlert: Bool = false
+    @State private var alertTitle: String = ""
+    @State private var alertMessage: String = ""
+
+    init(availableSubjects: [String] = []) {
+        self.availableSubjects = availableSubjects
+    }
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Fecha")) {
-                    DatePicker("Selecciona la fecha", selection: $selectedDate, displayedComponents: .date)
-                }
-
-                Section(header: Text("Hora de inicio")) {
-                    DatePicker("Inicio", selection: $startTime, displayedComponents: .hourAndMinute)
-                }
-
-                Section(header: Text("Hora de fin")) {
-                    DatePicker("Fin", selection: $endTime, displayedComponents: .hourAndMinute)
-                }
-
-                if let error = errorMessage {
-                    Section {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.footnote)
+                // Materia
+                Section("Materia") {
+                    if availableSubjects.isEmpty {
+                        TextField("Nombre de la materia", text: $subjectText)
+                            .textInputAutocapitalization(.words)
+                    } else {
+                        Picker("Selecciona materia", selection: $selectedSubjectIndex) {
+                            ForEach(availableSubjects.indices, id: \.self) { idx in
+                                Text(availableSubjects[idx]).tag(idx)
+                            }
+                        }
                     }
                 }
 
-                Section {
-                    Button(action: saveAvailability) {
-                        if isSaving {
-                            ProgressView()
-                        } else {
-                            Text("Publicar disponibilidad")
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
+                // Fecha y horario
+                Section("Fecha y horario") {
+                    DatePicker("Fecha", selection: $selectedDate, displayedComponents: .date)
+                    DatePicker("Inicio", selection: $startTime, displayedComponents: .hourAndMinute)
+                    DatePicker("Fin", selection: $endTime, displayedComponents: .hourAndMinute)
+                }
+
+                // Modalidad
+                Section("Modalidad") {
+                    Picker("Modalidad", selection: $modality) {
+                        Text("Virtual").tag(Modality.virtual)
+                        Text("Presencial").tag(Modality.presencial)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if modality == .presencial {
+                        TextField("Aula", text: $aula)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled(false)
+                    }
+                }
+
+                // Error del VM (si existe)
+                if let vmError = availabilityVM.errorMessage, !vmError.isEmpty {
+                    Section {
+                        Text(vmError)
+                            .foregroundColor(.red)
+                            .font(.footnote)
                     }
                 }
             }
             .navigationTitle("Nueva asesoría")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") {
-                        dismiss()
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(action: publish) {
+                        if isSaving { ProgressView() } else { Text("Publicar") }
                     }
+                    .disabled(isSaving)
                 }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+            }
+            .alert(alertTitle, isPresented: $showAlert) {
+                Button("OK") { if alertTitle == "Listo" { dismiss() } }
+            } message: {
+                Text(alertMessage)
             }
         }
     }
 
-    private func saveAvailability() {
-        guard let professorId = authViewModel.user?.uid else {
-            errorMessage = "No se encontró tu sesión."
+    // MARK: - Helpers
+    private func formatDate(_ date: Date) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        let tz = TimeZone(secondsFromGMT: 0) ?? TimeZone.current
+        cal.timeZone = tz
+        let c = cal.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 1970, c.month ?? 1, c.day ?? 1)
+    }
+
+    private func formatTime(_ date: Date) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        let tz = TimeZone(secondsFromGMT: 0) ?? TimeZone.current
+        cal.timeZone = tz
+        let c = cal.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
+
+    // MARK: - Publicar
+    private func publish() {
+        // ✅ Tomamos el usuario directo de FirebaseAuth
+        guard let user = Auth.auth().currentUser else {
+            show("Error", "No hay sesión iniciada.")
+            return
+        }
+        let uid = user.uid
+        let profName = user.displayName ?? "Profesor"
+
+        let subjectChosen: String = availableSubjects.isEmpty
+        ? subjectText.trimmingCharacters(in: .whitespacesAndNewlines)
+        : availableSubjects[selectedSubjectIndex]
+
+        if subjectChosen.isEmpty {
+            show("Falta información", "Selecciona o escribe una materia.")
+            return
+        }
+        if modality == .presencial && aula.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            show("Falta el aula", "Ingresa el aula para asesorías presenciales.")
             return
         }
 
-        let professorName = authViewModel.user?.displayName ?? "Profesor"
-
-        guard startTime < endTime else {
-            errorMessage = "La hora de inicio debe ser anterior a la de fin."
-            return
+        // Protege fin > inicio
+        var start = startTime
+        var end = endTime
+        if end <= start, let plusHour = Calendar.current.date(byAdding: .hour, value: 1, to: start) {
+            end = plusHour
         }
 
-        errorMessage = nil
+        let dateStr = formatDate(selectedDate)
+        let startStr = formatTime(start)
+        let endStr = formatTime(end)
+
         isSaving = true
-
-        // Formatear fecha
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let dateString = dateFormatter.string(from: selectedDate)
-
-        let hourFormatter = DateFormatter()
-        hourFormatter.dateFormat = "HH:mm"
-        let startString = hourFormatter.string(from: startTime)
-        let endString = hourFormatter.string(from: endTime)
-
-        // Publicar disponibilidad
-        availabilityViewModel.publishAvailability(
-            professorId: professorId,
-            professorName: professorName,
-            date: dateString,
-            startTime: startString,
-            endTime: endString
-        ) { success, error in
-            DispatchQueue.main.async {
-                isSaving = false
-                if let error = error {
-                    errorMessage = error.localizedDescription
-                } else {
-                    dismiss()
-                }
+        availabilityVM.publishAvailability(
+            professorId: uid,
+            professorName: profName,
+            date: dateStr,
+            startTime: startStr,
+            endTime: endStr,
+            subject: subjectChosen,
+            modality: modality,
+            aula: modality == .presencial ? aula : nil
+        ) { ok, error in
+            isSaving = false
+            if let error = error {
+                show("Error", error.localizedDescription)
+            } else if ok {
+                show("Listo", "La asesoría se publicó correctamente.")
+            } else {
+                show("Error", "No se pudo publicar la asesoría.")
             }
         }
+    }
+
+    private func show(_ title: String, _ message: String) {
+        alertTitle = title
+        alertMessage = message
+        showAlert = true
     }
 }
