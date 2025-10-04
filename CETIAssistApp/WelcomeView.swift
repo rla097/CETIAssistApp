@@ -19,7 +19,7 @@ struct WelcomeView: View {
                     .frame(width: 150, height: 150)
                     .foregroundColor(.blue)
 
-                Text("Bienvenido a CETI Asistencias")
+                Text("Bienvenido a CETI Peers")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)

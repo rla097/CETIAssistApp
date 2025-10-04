@@ -12,6 +12,9 @@ struct ProfessorHomeView: View {
     @StateObject private var calendarViewModel = CalendarViewModel()
     @State private var isPresentingNewAvailability = false
 
+    // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas
+    private let alsoDeletePast = true
+
     var body: some View {
         NavigationView {
             VStack {
@@ -26,16 +29,19 @@ struct ProfessorHomeView: View {
                         .padding()
                 } else if let error = calendarViewModel.errorMessage {
                     ErrorView(message: error) {
-                        calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+                        calendarViewModel.fetchAvailability(
+                            for: authViewModel.userRole,
+                            alsoDeletePast: alsoDeletePast
+                        )
                     }
-                } else if calendarViewModel.availabilityList.isEmpty {
+                } else if calendarViewModel.availabilities.isEmpty {
                     EmptyStateView(
                         title: "Sin asesorías publicadas",
                         message: "Publica tu disponibilidad para asesorar a los alumnos.",
                         iconName: "calendar.badge.plus"
                     )
                 } else {
-                    List(calendarViewModel.availabilityList) { availability in
+                    List(calendarViewModel.availabilities, id: \.id) { availability in
                         NavigationLink(destination: AvailabilityDetailView(availability: availability)) {
                             VStack(alignment: .leading) {
                                 Text("Fecha: \(availability.date)")
@@ -49,11 +55,12 @@ struct ProfessorHomeView: View {
                             .padding(.vertical, 4)
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
 
                 Spacer()
 
-                HStack {
+                HStack(spacing: 12) {
                     Button(action: {
                         isPresentingNewAvailability = true
                     }) {
@@ -85,7 +92,10 @@ struct ProfessorHomeView: View {
                     .environmentObject(authViewModel)
             }
             .onAppear {
-                calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+                calendarViewModel.fetchAvailability(
+                    for: authViewModel.userRole,
+                    alsoDeletePast: alsoDeletePast
+                )
             }
         }
     }
