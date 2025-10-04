@@ -9,7 +9,10 @@ import SwiftUI
 import FirebaseAuth
 
 struct StudentHomeView: View {
-    // Nombre del alumno (Auth). Fallback: usuario del email o "Alumno"
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var showSignOutConfirm = false
+
+    // MARK: - Nombre del alumno (desde FirebaseAuth)
     private var fullName: String {
         if let n = Auth.auth().currentUser?.displayName, !n.trimmingCharacters(in: .whitespaces).isEmpty {
             return n
@@ -20,8 +23,7 @@ struct StudentHomeView: View {
         return "Alumno"
     }
     private var firstName: String {
-        let parts = fullName.split(separator: " ")
-        return parts.first.map(String.init) ?? fullName
+        fullName.split(separator: " ").first.map(String.init) ?? fullName
     }
     private var initials: String {
         let parts = fullName.split(separator: " ")
@@ -42,20 +44,30 @@ struct StudentHomeView: View {
                     VStack(spacing: 20) {
                         headerCard
 
-                        // Acción principal: ir a asesorías disponibles
+                        // CTA principal: ver asesorías disponibles
                         NavigationLink {
-                            CalendarView() // Tu lista de asesorías (ya estilizada)
+                            CalendarView()
                         } label: {
                             PrimaryCTA(
                                 title: "Ver asesorías disponibles",
-                                subtitle: "Explora por fecha, modalidad y agenda tu lugar",
+                                subtitle: "Explora por modalidad y agenda tu lugar",
                                 systemImage: "calendar.badge.checkmark"
                             )
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal)
 
-                        // (Opcional) atajos o info adicional aquí…
+                        // 🔴 ÚNICO botón de cerrar sesión (card roja grande)
+                        Button {
+                            showSignOutConfirm = true
+                        } label: {
+                            DestructiveCTA(
+                                title: "Cerrar sesión",
+                                systemImage: "rectangle.portrait.and.arrow.right"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
 
                         Spacer(minLength: 12)
                     }
@@ -63,9 +75,17 @@ struct StudentHomeView: View {
                     .padding(.bottom, 24)
                 }
             }
-            // 🔵 Cambiamos el título de navegación:
-            .navigationTitle("Bienvenido, \(firstName)")
+            .navigationTitle("Bienvenido \(firstName)")
             .navigationBarTitleDisplayMode(.inline)
+            // ❌ Sin botón de toolbar de cerrar sesión
+            .alert("Cerrar sesión", isPresented: $showSignOutConfirm) {
+                Button("Cancelar", role: .cancel) {}
+                Button("Cerrar sesión", role: .destructive) {
+                    authViewModel.signOut()
+                }
+            } message: {
+                Text("¿Seguro que deseas cerrar tu sesión?")
+            }
         }
     }
 
@@ -98,7 +118,6 @@ struct StudentHomeView: View {
                         .foregroundStyle(.white.opacity(0.9))
                         .lineLimit(2)
                 }
-
                 Spacer()
             }
             .padding()
@@ -130,11 +149,8 @@ private struct PrimaryCTA: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(title).font(.headline)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
@@ -154,6 +170,61 @@ private struct PrimaryCTA: View {
     }
 }
 
+private struct DestructiveCTA: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    // ✅ Init con `subtitle` opcional (default vacío)
+    init(title: String, systemImage: String, subtitle: String = "") {
+        self.title = title
+        self.systemImage = systemImage
+        self.subtitle = subtitle
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(LinearGradient(colors: [Color.red, Color.red.opacity(0.7)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 52, height: 52)
+                Image(systemName: systemImage)
+                    .foregroundStyle(.white)
+                    .font(.system(size: 22, weight: .semibold))
+            }
+
+            VStack(alignment: .leading, spacing: subtitle.isEmpty ? 0 : 4) {
+                Text(title).font(.headline)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08))
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 8, x: 0, y: 3)
+        .accessibilityLabel("Cerrar sesión")
+        .accessibilityHint("Saldrás de tu cuenta actual")
+    }
+}
+
 #Preview {
     StudentHomeView()
+        .environmentObject(AuthViewModel())
 }
