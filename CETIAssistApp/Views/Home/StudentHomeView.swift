@@ -11,24 +11,37 @@ struct StudentHomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var calendarViewModel = CalendarViewModel()
 
+    // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas.
+    private let alsoDeletePast = true
+
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 16) {
                 Text("Bienvenido, Alumno")
-                    .font(.largeTitle)
-                    .bold()
+                    .font(.largeTitle.bold())
                     .padding(.top)
 
-                // Calendario de asesorías
+                // Indicadores simples de carga / error (opcional)
+                if calendarViewModel.isLoading {
+                    ProgressView("Cargando asesorías...")
+                        .padding(.vertical)
+                } else if let error = calendarViewModel.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+
+                // Calendario de asesorías (tu vista existente)
                 CalendarView()
                     .environmentObject(authViewModel)
                     .environmentObject(calendarViewModel)
 
                 Spacer()
 
-                Button(action: {
+                Button {
                     authViewModel.signOut()
-                }) {
+                } label: {
                     Text("Cerrar sesión")
                         .foregroundColor(.red)
                         .bold()
@@ -42,7 +55,12 @@ struct StudentHomeView: View {
             .padding()
             .navigationTitle("Inicio Alumno")
             .onAppear {
-                calendarViewModel.fetchAvailability(for: authViewModel.userRole)
+                // Muestra solo desde hoy en adelante y, si alsoDeletePast == true,
+                // intentará borrar asesorías pasadas (según permisos de Firestore).
+                calendarViewModel.fetchAvailability(
+                    for: authViewModel.userRole,
+                    alsoDeletePast: alsoDeletePast
+                )
             }
         }
     }

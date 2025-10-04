@@ -13,7 +13,7 @@ struct CETIAssistApp: App {
     @StateObject private var authViewModel = AuthViewModel()
 
     init() {
-        FirebaseApp.configure() // ✅ SOLO AQUÍ
+        FirebaseApp.configure() 
     }
 
     var body: some Scene {

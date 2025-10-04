@@ -8,69 +8,94 @@
 import Foundation
 import FirebaseFirestore
 
-class CalendarViewModel: ObservableObject {
-    @Published var availabilityList: [Availability] = []
+@MainActor
+final class CalendarViewModel: ObservableObject {
+
+    @Published var availabilities: [Availability] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
-    private let db = FirebaseManager.shared.firestore
+    private let db = Firestore.firestore()
 
-    func fetchAvailability(for role: UserRole?) {
+    /// Lista asesorías desde hoy 00:00 usando `start` (Timestamp).
+    /// Si `alsoDeletePast` es true, borra pasadas (start < hoy).
+    func fetchAvailability(for role: UserRole?, alsoDeletePast: Bool = false) {
         isLoading = true
         errorMessage = nil
 
-        db.collection("availability")
-            .order(by: "date", descending: false)
-            .getDocuments { [weak self] snapshot, error in
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        let todayTS = Timestamp(date: todayStart)
+
+        db.collection("asesorias")
+            .whereField("start", isGreaterThanOrEqualTo: todayTS)  // clave canónica
+            .order(by: "start", descending: false)
+            .getDocuments(source: .server) { [weak self] snapshot, err in
                 guard let self = self else { return }
 
-                DispatchQueue.main.async {
+                if let err = err {
+                    self.errorMessage = err.localizedDescription
                     self.isLoading = false
+                    return
+                }
 
-                    if let error = error {
-                        self.errorMessage = "Error al cargar asesorías: \(error.localizedDescription)"
+                guard let docs = snapshot?.documents else {
+                    self.isLoading = false
+                    return
+                }
+
+                var list: [Availability] = []
+                for doc in docs {
+                    if let a = Availability.from(document: doc) {
+                        list.append(a)
+                    }
+                }
+
+                // Orden estable por (date, startTime) — ambos Strings
+                self.availabilities = list.sorted {
+                    if $0.date == $1.date { return $0.startTime < $1.startTime }
+                    return $0.date < $1.date
+                }
+
+                if alsoDeletePast {
+                    self.deletePastAvailabilities(before: todayTS) {
+                        self.isLoading = false
+                    }
+                } else {
+                    self.isLoading = false
+                }
+            }
+    }
+
+    private func deletePastAvailabilities(before cutoff: Timestamp, completion: @escaping () -> Void) {
+        db.collection("asesorias")
+            .whereField("start", isLessThan: cutoff) // borra por start (Timestamp)
+            .limit(to: 500)
+            .getDocuments(source: .server) { [weak self] snapshot, err in
+                guard let self = self else { return }
+
+                if let err = err {
+                    print("Error listando pasadas: \(err.localizedDescription)")
+                    completion()
+                    return
+                }
+
+                let docs = snapshot?.documents ?? []
+                if docs.isEmpty {
+                    completion()
+                    return
+                }
+
+                let batch = self.db.batch()
+                docs.forEach { batch.deleteDocument($0.reference) }
+
+                batch.commit { batchErr in
+                    if let batchErr = batchErr {
+                        print("Error al borrar pasadas: \(batchErr.localizedDescription)")
+                        completion()
                         return
                     }
-
-                    guard let documents = snapshot?.documents else {
-                        self.errorMessage = "No se encontraron documentos."
-                        return
-                    }
-
-                    var tempList: [Availability] = []
-
-                    for doc in documents {
-                        let data = doc.data()
-                        guard
-                            let professorId = data["professorId"] as? String,
-                            let professorName = data["professorName"] as? String,
-                            let date = data["date"] as? String,
-                            let startTime = data["startTime"] as? String,
-                            let endTime = data["endTime"] as? String,
-                            let isAvailable = data["isAvailable"] as? Bool
-                        else {
-                            continue
-                        }
-
-                        // Mostrar solo las disponibles a los alumnos
-                        if role == .alumno && !isAvailable {
-                            continue
-                        }
-
-                        let availability = Availability(
-                            id: doc.documentID,
-                            professorId: professorId,
-                            professorName: professorName,
-                            date: date,
-                            startTime: startTime,
-                            endTime: endTime,
-                            isAvailable: isAvailable
-                        )
-
-                        tempList.append(availability)
-                    }
-
-                    self.availabilityList = tempList
+                    // Repite si hay más de 500
+                    self.deletePastAvailabilities(before: cutoff, completion: completion)
                 }
             }
     }
