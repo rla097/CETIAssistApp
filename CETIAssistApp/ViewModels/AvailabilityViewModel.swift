@@ -11,73 +11,84 @@ import FirebaseFirestore
 final class AvailabilityViewModel: ObservableObject {
     private let db = Firestore.firestore()
 
-    /// Publica disponibilidad guardando `start` y `end` como Timestamp + strings de compatibilidad
+    /// Publica disponibilidad guardando `start` y `end` como Timestamp + strings de compatibilidad.
+    /// Ahora requiere `subject` (materia) obligatoria.
     func publishAvailability(
         professorId: String,
         professorName: String,
         date: String,        // "yyyy-MM-dd"
         startTime: String,   // "HH:mm"
         endTime: String,     // "HH:mm"
+        subject: String,     // NEW
         completion: @escaping (Bool, Error?) -> Void
     ) {
-        // Combinar `date` + `startTime` / `endTime` a Date
-        let day = DateFormatter()
-        day.calendar = Calendar(identifier: .gregorian)
-        day.locale   = Locale(identifier: "en_US_POSIX")
-        day.timeZone = TimeZone(secondsFromGMT: 0) // día en UTC para que la fecha sea estable
-        day.dateFormat = "yyyy-MM-dd"
-
-        let hm = DateFormatter()
-        hm.calendar = Calendar(identifier: .gregorian)
-        hm.locale   = Locale(identifier: "en_US_POSIX")
-        hm.timeZone = TimeZone.current             // hora local del profesor
-        hm.dateFormat = "HH:mm"
-
-        guard let baseDay = day.date(from: date),
-              let sHM = hm.date(from: startTime),
-              let eHM = hm.date(from: endTime) else {
-            completion(false, NSError(domain: "format", code: 0, userInfo: [NSLocalizedDescriptionKey: "Fecha u hora inválida"]))
+        // Validaciones mínimas
+        guard !professorId.isEmpty else {
+            completion(false, NSError(domain: "Availability", code: -1, userInfo: [NSLocalizedDescriptionKey: "Falta professorId"]))
+            return
+        }
+        guard !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            completion(false, NSError(domain: "Availability", code: -2, userInfo: [NSLocalizedDescriptionKey: "Selecciona una materia"]))
             return
         }
 
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone.current
+        // Construir fechas
+        let dfDate = DateFormatter()
+        dfDate.locale = .current
+        dfDate.timeZone = .current
+        dfDate.dateFormat = "yyyy-MM-dd"
 
-        // Mezcla día (UTC) + horas (local) → fechas locales correctas
-        var sComp = cal.dateComponents([.year, .month, .day], from: baseDay)
-        let tComp = cal.dateComponents([.hour, .minute], from: sHM)
-        sComp.hour = tComp.hour
-        sComp.minute = tComp.minute
-        guard let start = cal.date(from: sComp) else {
-            completion(false, NSError(domain: "compose", code: 0, userInfo: [NSLocalizedDescriptionKey: "No se pudo construir fecha de inicio"]))
+        let dfTime = DateFormatter()
+        dfTime.locale = .current
+        dfTime.timeZone = .current
+        dfTime.dateFormat = "HH:mm"
+
+        guard let baseDate = dfDate.date(from: date),
+              let startHour = dfTime.date(from: startTime),
+              let endHour   = dfTime.date(from: endTime) else {
+            completion(false, NSError(domain: "Availability", code: -3, userInfo: [NSLocalizedDescriptionKey: "Formato de fecha/hora inválido"]))
             return
         }
 
-        var eComp = cal.dateComponents([.year, .month, .day], from: baseDay)
-        let teComp = cal.dateComponents([.hour, .minute], from: eHM)
-        eComp.hour = teComp.hour
-        eComp.minute = teComp.minute
-        let end = cal.date(from: eComp) ?? start
+        // Combinar fecha + horas
+        let cal = Calendar.current
+        let start = cal.date(
+            bySettingHour: cal.component(.hour, from: startHour),
+            minute: cal.component(.minute, from: startHour),
+            second: 0,
+            of: baseDate
+        ) ?? baseDate
 
-        // También guarda duración por si te sirve (minutos)
-        let duration = Int(end.timeIntervalSince(start) / 60)
+        let end = cal.date(
+            bySettingHour: cal.component(.hour, from: endHour),
+            minute: cal.component(.minute, from: endHour),
+            second: 0,
+            of: baseDate
+        ) ?? baseDate.addingTimeInterval(3600)
+
+        guard end > start else {
+            completion(false, NSError(domain: "Availability", code: -4, userInfo: [NSLocalizedDescriptionKey: "La hora de fin debe ser posterior a la de inicio"]))
+            return
+        }
+
+        let duration = Int(end.timeIntervalSince(start) / 60.0) // minutos
 
         let doc: [String: Any] = [
-            // Campos canónicos (consulta SIEMPRE por aquí)
-            "start": Timestamp(date: start),
-            "end":   Timestamp(date: end),
-
-            // Compatibilidad con tu UI actual
-            "date": date,                // "yyyy-MM-dd"
-            "startTime": startTime,      // "HH:mm"
-            "endTime": endTime,          // "HH:mm"
-
-            // Profesor
             "professorId": professorId,
             "professorName": professorName,
+            "start": Timestamp(date: start),
+            "end": Timestamp(date: end),
 
-            // Estado
+            // Compatibilidad con vistas existentes
+            "date": date,
+            "startTime": startTime,
+            "endTime": endTime,
+
             "isAvailable": true,
+
+            // NEW: materia
+            "subject": subject,
+            "subjectLower": subject.lowercased(),
 
             // Extra útil
             "duration": duration

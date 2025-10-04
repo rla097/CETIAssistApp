@@ -13,41 +13,52 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Encabezado
             HStack {
-                Text("Asesorías disponibles")
-                    .font(.title3.weight(.semibold))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Asesorías disponibles")
+                        .font(.title2).bold()
+                    if let error = calendarViewModel.errorMessage, !error.isEmpty {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundColor(.red)
+                    }
+                }
                 Spacer()
                 Button {
-                    // Reinicia la suscripción (seguro: startListening ya hace stopListening internamente)
-                    calendarViewModel.startListening(alsoDeletePast: true) // o false si no quieres borrar pasadas desde cliente
+                    calendarViewModel.startListening(alsoDeletePast: true)
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .imageScale(.large)
+                        .padding(8)
                 }
-                .accessibilityLabel("Recargar asesorías")
+                .accessibilityLabel("Actualizar")
             }
+            .padding(.horizontal)
 
-            if calendarViewModel.isLoading {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("Cargando asesorías…")
-                }
-                .padding(.vertical, 8)
-            } else if let error = calendarViewModel.errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.callout)
-            } else if calendarViewModel.availabilities.isEmpty {
-                Text("No hay asesorías disponibles desde hoy.")
-                    .foregroundColor(.secondary)
-                    .font(.callout)
-            } else {
-                List(calendarViewModel.availabilities, id: \.id) { item in
-                    AvailabilityRow(item: item)
-                }
-                .listStyle(.insetGrouped)
-                // Pull to refresh (opcional):
-                .refreshable {
-                    calendarViewModel.startListening(alsoDeletePast: true)
+            // Contenido
+            Group {
+                if calendarViewModel.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Cargando asesorías…")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+                } else if calendarViewModel.availabilities.isEmpty {
+                    EmptyStateView(
+                        title: "No hay asesorías por ahora",
+                        message: "Vuelve a intentar más tarde o actualiza."
+                    )
+                    .padding(.horizontal)
+                } else {
+                    List(calendarViewModel.availabilities) { item in
+                        AvailabilityRow(item: item)
+                    }
+                    .listStyle(.insetGrouped)
+                    .refreshable {
+                        calendarViewModel.startListening(alsoDeletePast: true)
+                    }
                 }
             }
         }
@@ -61,10 +72,16 @@ private struct AvailabilityRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Ajustado a tu struct Availability
+            // Profesor
             Text(item.professorName)
                 .font(.headline)
 
+            // NEW: Materia
+            Text(item.subject)
+                .font(.subheadline)
+                .bold()
+
+            // Fecha y horario
             Text("\(item.date) • \(item.startTime) – \(item.endTime)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
