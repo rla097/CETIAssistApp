@@ -10,6 +10,7 @@ import SwiftUI
 struct ProfessorHomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var calendarViewModel = CalendarViewModel()
+    @StateObject private var availabilityVM = AvailabilityViewModel()   // ✅ VM compartido para el detalle
     @State private var isPresentingNewAvailability = false
 
     // Cambia a false si NO quieres que el cliente intente borrar asesorías pasadas.
@@ -40,7 +41,11 @@ struct ProfessorHomeView: View {
                     )
                 } else {
                     List(calendarViewModel.availabilities, id: \.id) { availability in
-                        NavigationLink(destination: AvailabilityDetailView(availability: availability)) {
+                        NavigationLink(
+                            destination:
+                                // ✅ Pasamos el AvailabilityViewModel requerido por el detalle
+                                AvailabilityDetailView(availability: availability, availabilityVM: availabilityVM)
+                        ) {
                             VStack(alignment: .leading) {
                                 Text("Fecha: \(availability.date)")
                                 Text("Hora: \(availability.startTime) - \(availability.endTime)")
@@ -86,11 +91,12 @@ struct ProfessorHomeView: View {
             .padding()
             .navigationTitle("Inicio Profesor")
             .sheet(isPresented: $isPresentingNewAvailability) {
+                // NewAvailabilityView no necesita el AuthViewModel, pero no estorba dejarlo inyectado
                 NewAvailabilityView()
                     .environmentObject(authViewModel)
             }
             .onAppear {
-                // 🔴 Suscripción en tiempo real
+                // 🔴 Suscripción en tiempo real del listado del profesor
                 calendarViewModel.startListening(alsoDeletePast: alsoDeletePast)
             }
             .onDisappear {

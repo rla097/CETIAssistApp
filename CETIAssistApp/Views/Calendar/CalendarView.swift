@@ -8,90 +8,108 @@
 import SwiftUI
 
 struct CalendarView: View {
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @StateObject private var availabilityVM = AvailabilityViewModel()
+    @State private var modalityFilter: ModalityFilter = .all
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Encabezado
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Asesorías disponibles")
-                        .font(.title2).bold()
-                    if let error = calendarViewModel.errorMessage, !error.isEmpty {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundColor(.red)
+        NavigationView {
+            VStack(spacing: 0) {
+                // Filtro por modalidad
+                Picker("Modalidad", selection: $modalityFilter) {
+                    ForEach(ModalityFilter.allCases) { f in
+                        Text(f.title).tag(f)
                     }
                 }
-                Spacer()
-                Button {
-                    calendarViewModel.startListening(alsoDeletePast: true)
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .imageScale(.large)
-                        .padding(8)
-                }
-                .accessibilityLabel("Actualizar")
-            }
-            .padding(.horizontal)
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
 
-            // Contenido
-            Group {
-                if calendarViewModel.isLoading {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("Cargando asesorías…")
+                contentList
+            }
+            .navigationTitle("Asesorías")
+            .onAppear { availabilityVM.startListening(professorId: nil) }
+            .onDisappear { availabilityVM.stopListening() }
+        }
+    }
+
+    private var contentList: some View {
+        Group {
+            if availabilityVM.isLoading && availabilityVM.items.isEmpty {
+                ProgressView("Cargando asesorías…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredItems.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.largeTitle)
+                        .padding(.top, 40)
+                    Text("No hay asesorías disponibles").font(.headline)
+                    Text("Vuelve más tarde.").foregroundColor(.secondary).font(.subheadline)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal)
+            } else {
+                List {
+                    ForEach(filteredItems) { item in
+                        NavigationLink {
+                            AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
+                        } label: {
+                            availabilityRow(item) // contenido visual de la fila
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                } else if calendarViewModel.availabilities.isEmpty {
-                    EmptyStateView(
-                        title: "No hay asesorías por ahora",
-                        message: "Vuelve a intentar más tarde o actualiza."
-                    )
-                    .padding(.horizontal)
-                } else {
-                    List(calendarViewModel.availabilities) { item in
-                        AvailabilityRow(item: item)
-                    }
-                    .listStyle(.insetGrouped)
-                    .refreshable {
-                        calendarViewModel.startListening(alsoDeletePast: true)
-                    }
+                }
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    availabilityVM.startListening(professorId: nil)
                 }
             }
         }
-        .padding(.vertical, 8)
     }
-}
 
-// MARK: - Celda de lista
-private struct AvailabilityRow: View {
-    let item: Availability
+    private var filteredItems: [Availability] {
+        availabilityVM.items.filter { item in
+            switch modalityFilter {
+            case .all: return true
+            case .virtual: return item.modality == .virtual
+            case .presencial: return item.modality == .presencial
+            }
+        }
+    }
 
-    var body: some View {
+    @ViewBuilder
+    private func availabilityRow(_ a: Availability) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Profesor
-            Text(item.professorName)
-                .font(.headline)
-
-            // NEW: Materia
-            Text(item.subject)
-                .font(.subheadline)
-                .bold()
-
-            // Fecha y horario
-            Text("\(item.date) • \(item.startTime) – \(item.endTime)")
+            HStack(alignment: .firstTextBaseline) {
+                Text(a.subject).font(.headline)
+                Spacer()
+                Text(a.modality.displayName)
+                    .font(.caption)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            Text("\(a.date) • \(a.startTime) – \(a.endTime)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-
-            if !item.isAvailable {
-                Text("No disponible")
-                    .font(.caption)
-                    .foregroundColor(.red)
+            if a.modality == .presencial, let aula = a.aula, !aula.isEmpty {
+                Text("Aula: \(aula)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 }
+
+private enum ModalityFilter: String, CaseIterable, Identifiable {
+    case all, virtual, presencial
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .all: "Todas"
+        case .virtual: "Virtual"
+        case .presencial: "Presencial"
+        }
+    }
+}
+
+#Preview { CalendarView() }

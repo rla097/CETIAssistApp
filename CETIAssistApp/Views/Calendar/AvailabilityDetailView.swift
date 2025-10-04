@@ -6,119 +6,106 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct AvailabilityDetailView: View {
     let availability: Availability
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject private var reservationViewModel = ReservationViewModel()
+    @ObservedObject var availabilityVM: AvailabilityViewModel
 
-    @Environment(\.dismiss) var dismiss
-    @State private var showSuccessAlert = false
+    @Environment(\.dismiss) private var dismiss
+    @State private var isBooking: Bool = false
+    @State private var showAlert: Bool = false
+    @State private var alertTitle: String = ""
+    @State private var alertMessage: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Profesor
-            HStack(spacing: 12) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 42))
-                    .foregroundColor(.blue)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(availability.professorName)
-                        .font(.title3).bold()
-                    Text("Asesoría individual")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
+        Form {
+            Section("Materia") {
+                Text(availability.subject).font(.headline)
             }
-
-            // NEW: Materia
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Materia")
-                    .font(.headline)
-                Text(availability.subject)
-                    .font(.body)
+            Section("Horario") {
+                Text("\(availability.date)")
+                Text("\(availability.startTime) – \(availability.endTime)")
             }
-
-            // Fecha y hora
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Fecha y hora")
-                    .font(.headline)
-                Text("\(availability.date) • \(availability.startTime) – \(availability.endTime)")
-                    .font(.body)
-            }
-
-            if let error = reservationViewModel.errorMessage, !error.isEmpty {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                    Text(error).font(.footnote)
-                }
-                .foregroundColor(.red)
-                .padding(.top, 4)
-            }
-
-            Spacer()
-
-            // Botón reservar
-            Button {
-                reserve()
-            } label: {
+            Section("Modalidad") {
                 HStack {
-                    if reservationViewModel.isReserving { ProgressView().tint(.white) }
-                    Text("Reservar asesoría").bold()
+                    Text("Tipo")
+                    Spacer()
+                    Text(availability.modality.displayName)
+                        .font(.caption)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.15))
+                        .clipShape(Capsule())
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
+                if availability.modality == .presencial, let aula = availability.aula, !aula.isEmpty {
+                    HStack {
+                        Text("Aula")
+                        Spacer()
+                        Text(aula)
+                    }
+                }
             }
-            .disabled(reservationViewModel.isReserving)
+
+            Section {
+                Button {
+                    book()
+                } label: {
+                    if isBooking { ProgressView() }
+                    else { Text("Agendar asesoría") }
+                }
+                .disabled(isBooking || !availability.isAvailable) // por seguridad
+            }
         }
-        .padding()
         .navigationTitle("Detalle de asesoría")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("¡Listo!", isPresented: $showSuccessAlert) {
-            Button("OK") { dismiss() }
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button("OK") {
+                if alertTitle == "Éxito" { dismiss() }
+            }
         } message: {
-            Text("Tu asesoría ha sido reservada correctamente.")
+            Text(alertMessage)
         }
     }
 
-    // MARK: - Reservar
-    private func reserve() {
-        guard let studentId = authViewModel.user?.uid else {
-            reservationViewModel.errorMessage = "No se pudo obtener el usuario actual."
+    private func book() {
+        guard let user = Auth.auth().currentUser else {
+            show("Error", "Debes iniciar sesión para agendar.")
             return
         }
-
-        reservationViewModel.reserveAvailability(
-            availabilityId: availability.id,
-            studentId: studentId
-        ) { success, _ in
-            if success {
-                showSuccessAlert = true
+        isBooking = true
+        availabilityVM.markAsBooked(id: availability.id, studentId: user.uid) { ok, error in
+            isBooking = false
+            if let e = error {
+                show("Error", e.localizedDescription)
+            } else if ok {
+                show("Éxito", "La asesoría fue agendada.")
+            } else {
+                show("Error", "No se pudo agendar la asesoría.")
             }
         }
+    }
+
+    private func show(_ title: String, _ message: String) {
+        alertTitle = title
+        alertMessage = message
+        showAlert = true
     }
 }
 
-struct AvailabilityDetailView_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            AvailabilityDetailView(
-                availability: Availability(
-                    id: "demo",
-                    professorId: "prof1",
-                    professorName: "Dra. García",
-                    date: "2025-10-04",
-                    startTime: "10:00",
-                    endTime: "11:00",
-                    isAvailable: true,
-                    subject: "Cálculo diferencial"
-                )
-            )
-            .environmentObject(AuthViewModel())
-        }
+#Preview {
+    let sample = Availability(
+        id: "demo",
+        professorId: "p1",
+        professorName: "Profa. Demo",
+        date: "2025-10-10",
+        startTime: "10:00",
+        endTime: "11:00",
+        isAvailable: true,
+        subject: "Cálculo I",
+        modality: .presencial,
+        aula: "Aula 205"
+    )
+    return NavigationView {
+        AvailabilityDetailView(availability: sample, availabilityVM: AvailabilityViewModel())
     }
 }
