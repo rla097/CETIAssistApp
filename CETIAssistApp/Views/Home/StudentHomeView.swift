@@ -17,9 +17,6 @@ struct StudentHomeView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
-                Text("Bienvenido, Alumno")
-                    .font(.largeTitle.bold())
-                    .padding(.top)
 
                 // Indicadores simples de carga / error
                 if calendarViewModel.isLoading {
