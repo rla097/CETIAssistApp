@@ -13,18 +13,10 @@ struct WelcomeView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                Image(systemName: "graduationcap.circle.fill")
+                Image("CetiPeersLogo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 150, height: 150)
-                    .foregroundColor(.blue)
-
-                Text("Bienvenido a CETI Peers")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-
-                Spacer()
+                    .frame(width: 180, height: 180)
 
                 NavigationLink(destination: LoginView()) {
                     Text("Iniciar Sesión")
