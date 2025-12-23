@@ -9,10 +9,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* ===========================
-       Helpers / Utils
-       =========================== */
-
     // ¿Hay sesión?
     function isSignedIn() {
       return request.auth != null;
@@ -79,10 +75,6 @@ service cloud.firestore {
       return oldData.professorId == newData.professorId;
     }
 
-    /* ===========================
-       Colección principal: asesoria(s)
-       =========================== */
-
     match /asesorias/{id} {
       // Lectura: cualquier usuario autenticado
       allow get, list, read: if isSignedIn();
@@ -103,11 +95,6 @@ service cloud.firestore {
       // Borrado: solo el dueño del documento
       allow delete: if isSignedIn() && isOwner(resource.data);
     }
-
-    /* ===========================
-       (Ejemplos de otras colecciones comunes)
-       Ajusta/borra si no aplican a tu app.
-       =========================== */
 
     // Perfiles de usuario (solo lectura para autenticados; escritura solo del propio doc)
     match /users/{uid} {

@@ -5,26 +5,16 @@
 //  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
 //
 
-//
-//  CalendarView.swift
-//  CETIAssistApp
-//
-//  Created by Rolando Ernel Loza Aréchiga on 12/07/25.
-//
-
 import SwiftUI
 
 struct CalendarView: View {
     @StateObject private var availabilityVM = AvailabilityViewModel()
     @State private var modalityFilter: ModalityFilter = .all
-
-    // Índice del elemento actualmente enfocado para hacer step arriba/abajo
     @State private var currentIndex: Int? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
             ZStack {
-                // Fondo sutil
                 LinearGradient(
                     colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
                     startPoint: .top, endPoint: .bottom
@@ -32,7 +22,6 @@ struct CalendarView: View {
                 .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Filtro por modalidad
                     Picker("Modalidad", selection: $modalityFilter) {
                         ForEach(ModalityFilter.allCases) { f in
                             Text(f.title).tag(f)
@@ -41,11 +30,8 @@ struct CalendarView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-
-                    // Contenido principal
                     ScrollView {
                         LazyVStack(spacing: 14) {
-                            // ⬆️ ancla de inicio
                             Color.clear.frame(height: 0).id("top")
 
                             if availabilityVM.isLoading && availabilityVM.items.isEmpty {
@@ -60,9 +46,8 @@ struct CalendarView: View {
                                         AvailabilityDetailView(availability: item, availabilityVM: availabilityVM)
                                     } label: {
                                         AvailabilityCardRow(availability: item)
-                                            .id(item.id) // importante para scrollTo por elemento
+                                            .id(item.id)
                                             .background(
-                                                // leve realce del elemento “enfocado”
                                                 (index == (currentIndex ?? -1) ? Color.primary.opacity(0.04) : Color.clear)
                                                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                             )
@@ -71,8 +56,6 @@ struct CalendarView: View {
                                     .padding(.horizontal)
                                 }
                             }
-
-                            // ⬇️ ancla de fin
                             Color.clear.frame(height: 0).id("bottom")
                         }
                         .padding(.vertical, 8)
@@ -84,7 +67,6 @@ struct CalendarView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 availabilityVM.startListening(professorId: nil)
-                // Si ya hay datos al entrar, colocamos foco en el primero
                 if let firstIdx = filteredItems.indices.first {
                     currentIndex = firstIdx
                     if let firstId = filteredItems[firstIdx].id as String? {
@@ -93,8 +75,6 @@ struct CalendarView: View {
                 }
             }
             .onDisappear { availabilityVM.stopListening() }
-
-            // 🔘 Botones de scroll por 1 elemento
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Spacer()
@@ -125,11 +105,8 @@ struct CalendarView: View {
                     }
                     .padding(.trailing, 16)
                 }
-                .padding(.bottom, 8)   // despega del Home Indicator
+                .padding(.bottom, 8)
             }
-
-            // 🔄 Mantener currentIndex válido cuando cambian los datos
-            // OJO: evitamos el requisito de Equatable en Array usando los IDs (String es Equatable)
             .onChange(of: availabilityVM.items.map(\.id)) { _ in
                 normalizeCurrentIndexAndAutoFocus(proxy: proxy)
             }
@@ -137,7 +114,6 @@ struct CalendarView: View {
                 normalizeCurrentIndexAndAutoFocus(proxy: proxy)
             }
             .onChange(of: modalityFilter) { _ in
-                // al cambiar filtro, reseteamos al primer elemento (si existe)
                 if let first = filteredItems.indices.first {
                     currentIndex = first
                     withAnimation(.easeInOut) {
@@ -149,8 +125,6 @@ struct CalendarView: View {
             }
         }
     }
-
-    // MARK: - Helpers de scroll por elemento
 
     private var hasItems: Bool { !filteredItems.isEmpty }
 
@@ -169,7 +143,6 @@ struct CalendarView: View {
             currentIndex = nil
             return
         }
-        // Si el índice actual es nulo o está fuera de rango, colócalo en 0
         if currentIndex == nil || !(filteredItems.indices).contains(currentIndex!) {
             currentIndex = filteredItems.indices.first
         }
@@ -198,7 +171,6 @@ struct CalendarView: View {
         }
     }
 
-    // Filtro en memoria (el VM ya entrega solo disponibles futuras)
     private var filteredItems: [Availability] {
         availabilityVM.items.filter {
             switch modalityFilter {
@@ -210,15 +182,12 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - Card Row, Empty, Filtro
-
 private struct AvailabilityCardRow: View {
     let availability: Availability
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            // Avatar/Icono
             ZStack {
                 Circle()
                     .fill(LinearGradient(colors: accentColors, startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -229,7 +198,6 @@ private struct AvailabilityCardRow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                // Título + chip modalidad
                 HStack(alignment: .firstTextBaseline) {
                     Text(availability.subject)
                         .font(.headline)
@@ -238,7 +206,6 @@ private struct AvailabilityCardRow: View {
                     ChipSmall(text: availability.modality.displayName)
                 }
 
-                // Fecha y horario
                 HStack(spacing: 10) {
                     Label(availability.date, systemImage: "calendar")
                     Label("\(availability.startTime) – \(availability.endTime)", systemImage: "clock")
@@ -246,7 +213,6 @@ private struct AvailabilityCardRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-                // Aula (solo si presencial)
                 if availability.modality == .presencial, let aula = availability.aula, !aula.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "building.2")

@@ -9,7 +9,6 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 
-// MARK: - Roles
 enum UserRole: Equatable {
     case alumno
     case profesor
@@ -30,32 +29,27 @@ enum UserRole: Equatable {
     }
 }
 
-// MARK: - ViewModel
 @MainActor
 final class AuthViewModel: ObservableObject {
 
-    // Firebase
     private let auth = FirebaseManager.shared.auth
     private let db   = FirebaseManager.shared.firestore
 
     private var authListener: AuthStateDidChangeListenerHandle?
 
-    // Estado expuesto a la UI
     @Published var user: FirebaseAuth.User?
     @Published var userRole: UserRole?
-    @Published var professorSubjects: [String] = []      // NEW: materias del profesor
+    @Published var professorSubjects: [String] = []
 
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
-    // MARK: - Init
     init() {
-        // Listener de sesión
+
         authListener = auth.addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
             self.user = user
 
-            // Si hay usuario, trae su documento; si no, limpia estado.
             if let uid = user?.uid {
                 Task { await self.loadUserDocument(uid: uid) }
             } else {
@@ -71,7 +65,6 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Helpers
     private func loadUserDocument(uid: String) async {
         isLoading = true
         errorMessage = nil
@@ -108,7 +101,6 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Login
     func login(email: String, password: String, completion: @escaping (Bool, Error?) -> Void) {
         isLoading = true
         errorMessage = nil
@@ -122,21 +114,17 @@ final class AuthViewModel: ObservableObject {
                     completion(false, error)
                     return
                 }
-                // El listener de sesión se encargará de cargar el user doc
                 completion(true, nil)
             }
         }
     }
 
-    // MARK: - Registro
-    /// Registro de usuario.
-    /// `subjects` se usa SOLO si `role == .profesor`.
     func register(
         email: String,
         password: String,
         displayName: String,
         role: UserRole,
-        subjects: [String] = [],                         // NEW
+        subjects: [String] = [],
         completion: @escaping (Bool, Error?) -> Void
     ) {
         isLoading = true
@@ -164,14 +152,11 @@ final class AuthViewModel: ObservableObject {
                 return
             }
 
-            // Actualizar displayName
             let changeReq = user.createProfileChangeRequest()
             changeReq.displayName = displayName
             changeReq.commitChanges { _ in
-                // Ignoramos error de displayName no crítico
             }
 
-            // Datos a guardar en Firestore
             var userData: [String: Any] = [
                 "uid": user.uid,
                 "email": email,
@@ -179,7 +164,6 @@ final class AuthViewModel: ObservableObject {
                 "role": role.rawValue
             ]
 
-            // NEW: guardar materias si es profesor
             if role == .profesor {
                 userData["subjects"] = subjects
             }
@@ -191,7 +175,6 @@ final class AuthViewModel: ObservableObject {
                         self.errorMessage = err.localizedDescription
                         completion(false, err)
                     } else {
-                        // Refrescar estado local
                         self.user = user
                         self.userRole = role
                         self.professorSubjects = (role == .profesor) ? subjects : []
@@ -202,15 +185,14 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Logout
     func signOut() {
         do {
             try auth.signOut()
             self.user = nil
             self.userRole = nil
-            self.professorSubjects = []   // limpiar
+            self.professorSubjects = []
         } catch {
-            print("❌ Error al cerrar sesión: \(error.localizedDescription)")
+            print("Error al cerrar sesión: \(error.localizedDescription)")
         }
     }
 }

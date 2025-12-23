@@ -82,7 +82,6 @@ struct LoginView: View {
                     errorMessage = "Error al iniciar sesión: \(error.localizedDescription)"
                 } else {
                     errorMessage = nil
-                    // El cambio de vista será manejado por AuthViewModel automáticamente
                 }
             }
         }

@@ -38,7 +38,6 @@ class ReservationViewModel: ObservableObject {
                 return
             }
 
-            // Actualizar estado de la disponibilidad
             self.db.collection("availability").document(availabilityId).updateData([
                 "isAvailable": false
             ]) { updateError in

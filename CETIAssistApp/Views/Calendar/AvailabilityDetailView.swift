@@ -20,7 +20,6 @@ struct AvailabilityDetailView: View {
     @State private var alertTitle: String = ""
     @State private var alertMessage: String = ""
 
-    // Si el usuario actual es el profesor dueño, ocultamos el CTA de “Agendar”
     private var isOwner: Bool {
         Auth.auth().currentUser?.uid == availability.professorId
     }
@@ -53,8 +52,6 @@ struct AvailabilityDetailView: View {
         }
     }
 
-    // MARK: - Header
-
     private var headerCard: some View {
         ZStack {
             LinearGradient(
@@ -65,7 +62,6 @@ struct AvailabilityDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                // Materia
                 Text(availability.subject)
                     .font(.title2).bold()
                     .foregroundStyle(.white)
@@ -108,29 +104,21 @@ struct AvailabilityDetailView: View {
             return [Color.purple, Color.blue]
         }
     }
-
-    // MARK: - Info Card
-
     private var infoCard: some View {
         VStack(spacing: 14) {
-            // Modalidad
             InfoRow(
                 icon: availability.modality == .virtual ? "wifi" : "building.2",
                 title: "Modalidad",
                 value: availability.modality.displayName
             )
 
-            // Aula (solo presencial)
             if availability.modality == .presencial,
                let aula = availability.aula, !aula.isEmpty {
                 InfoRow(icon: "mappin.and.ellipse", title: "Aula", value: aula)
             }
 
-            // Horario
             InfoRow(icon: "calendar", title: "Fecha", value: availability.date)
             InfoRow(icon: "clock.arrow.circlepath", title: "Horario", value: "\(availability.startTime) – \(availability.endTime)")
-
-            // Estado
             InfoRow(
                 icon: availability.isAvailable ? "checkmark.circle" : "xmark.circle",
                 title: "Estado",
@@ -162,11 +150,7 @@ struct AvailabilityDetailView: View {
         .padding(12)
         .background(Color.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-
-    // MARK: - CTA
-
     private var showBookCTA: Bool {
-        // Mostrar CTA solo a alumnos (no dueño) y si está disponible
         availability.isAvailable && !isOwner
     }
 
@@ -193,8 +177,6 @@ struct AvailabilityDetailView: View {
         .disabled(isBooking)
     }
 
-    // MARK: - Actions
-
     private func book() {
         guard let user = Auth.auth().currentUser else {
             show("Error", "Debes iniciar sesión para agendar.")
@@ -219,9 +201,6 @@ struct AvailabilityDetailView: View {
         showAlert = true
     }
 }
-
-// MARK: - Aux UI Components
-
 private struct Chip: View {
     let text: String
     var systemImage: String? = nil

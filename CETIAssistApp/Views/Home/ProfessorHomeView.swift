@@ -19,7 +19,6 @@ struct ProfessorHomeView: View {
 
     private let alsoDeletePast = true
 
-    // Nombre (para header)
     private var fullName: String {
         if let n = Auth.auth().currentUser?.displayName, !n.trimmingCharacters(in: .whitespaces).isEmpty { return n }
         if let email = Auth.auth().currentUser?.email, let user = email.split(separator: "@").first {
@@ -39,13 +38,10 @@ struct ProfessorHomeView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 20) {
-                        // ⬆️ ancla de inicio
                         Color.clear.frame(height: 0).id("top")
 
-                        // Header
                         headerCard
 
-                        // CTA publicar
                         Button { isPresentingNewAvailability = true } label: {
                             PrimaryCTA(
                                 title: "Publicar nueva asesoría",
@@ -55,7 +51,6 @@ struct ProfessorHomeView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Contenido
                         if calendarViewModel.isLoading && calendarViewModel.availabilities.isEmpty {
                             ProgressView("Cargando asesorías…")
                                 .frame(maxWidth: .infinity, minHeight: 140)
@@ -82,7 +77,6 @@ struct ProfessorHomeView: View {
                             }
                         }
 
-                        // Cerrar sesión
                         Button { showSignOutConfirm = true } label: {
                             DestructiveCTA(
                                 title: "Cerrar sesión",
@@ -93,7 +87,6 @@ struct ProfessorHomeView: View {
 
                         Spacer(minLength: 12)
 
-                        // ⬇️ ancla de fin
                         Color.clear.frame(height: 0).id("bottom")
                     }
                     .padding(.top, 16)
@@ -119,7 +112,6 @@ struct ProfessorHomeView: View {
                     Button("Cerrar sesión", role: .destructive) { authViewModel.signOut() }
                 } message: { Text("¿Seguro que deseas cerrar tu sesión?") }
 
-                // 🔘 Botones de scroll SIEMPRE visibles (ajusta si quieres condicionar por cantidad)
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         Spacer()
@@ -153,7 +145,6 @@ struct ProfessorHomeView: View {
         }
     }
 
-    // Header
     private var headerCard: some View {
         ZStack {
             LinearGradient(colors: [Color.indigo, Color.blue],
@@ -177,8 +168,6 @@ struct ProfessorHomeView: View {
         .frame(maxWidth: .infinity, minHeight: 110)
     }
 }
-
-// ====== Componentes ======
 
 private struct ProfessorAvailabilityCardRow: View {
     let availability: Availability

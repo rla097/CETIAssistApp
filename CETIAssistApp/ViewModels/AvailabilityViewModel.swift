@@ -28,7 +28,6 @@ final class AvailabilityViewModel: ObservableObject {
 
         var query: Query = db.collection(collectionName)
 
-        // No filtramos por start/isAvailable aquí; lo hacemos en memoria.
         if let pid = professorId, !pid.isEmpty {
             query = query.whereField("professorId", isEqualTo: pid)
         }
@@ -46,8 +45,6 @@ final class AvailabilityViewModel: ObservableObject {
 
             let docs = snapshot?.documents ?? []
             let mapped = docs.compactMap { Availability.from(document: $0) }
-
-            // Filtro en memoria: FUTURO + SOLO DISPONIBLES
             let now = Date()
 
             func parseStart(_ a: Availability) -> Date? {
@@ -75,7 +72,6 @@ final class AvailabilityViewModel: ObservableObject {
         listener = nil
     }
 
-    // publicar (se asegura que isAvailable sea true)
     func publishAvailability(
         professorId: String,
         professorName: String,
@@ -133,7 +129,7 @@ final class AvailabilityViewModel: ObservableObject {
             "date": date,
             "startTime": startTime,
             "endTime": endTime,
-            "isAvailable": true,                // 🔵 aseguramos disponible al crear
+            "isAvailable": true,
             "subject": subject,
             "subjectLower": subject.lowercased(),
             "modality": modality.rawValue,
@@ -156,7 +152,6 @@ final class AvailabilityViewModel: ObservableObject {
         }
     }
 
-    // (si tienes flujo de reserva, recuerda setear isAvailable=false y opcionalmente studentId)
     func markAsBooked(id: String, studentId: String, completion: @escaping (Bool, Error?) -> Void) {
         let patch: [String: Any] = [
             "isAvailable": false,

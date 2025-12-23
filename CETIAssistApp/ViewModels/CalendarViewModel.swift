@@ -18,7 +18,6 @@ final class CalendarViewModel: ObservableObject {
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
 
-    // Inicia una suscripción en tiempo real
     func startListening(alsoDeletePast: Bool = false) {
         stopListening() // evita duplicados
 
@@ -63,13 +62,11 @@ final class CalendarViewModel: ObservableObject {
         }
     }
 
-    // Detiene la suscripción (llamar en onDisappear si lo deseas)
     func stopListening() {
         listener?.remove()
         listener = nil
     }
 
-    // Limpieza opcional (no bloquea la UI)
     private func cleanupPast(before cutoff: Timestamp) {
         db.collection("asesorias")
             .whereField("start", isLessThan: cutoff)
@@ -90,7 +87,6 @@ final class CalendarViewModel: ObservableObject {
                         print("Error al borrar pasadas: \(batchErr.localizedDescription)")
                         return
                     }
-                    // si quedan más de 500 se puede reintentar, pero no es crítico para la UI en vivo
                 }
             }
     }

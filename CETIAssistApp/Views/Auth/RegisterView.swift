@@ -10,18 +10,15 @@ import SwiftUI
 struct RegisterView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
 
-    // Campos de registro
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var confirmPassword: String = ""
     @State private var displayName: String = ""
     @State private var selectedRole: UserRole = .alumno
 
-    // Materias (solo profesor)
     @State private var subjects: [String] = []
     @State private var newSubject: String = ""
 
-    // Estado de UI
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
 
@@ -68,7 +65,6 @@ struct RegisterView: View {
                         .cornerRadius(10)
                 }
 
-                // Rol
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Rol").font(.headline)
                     Picker("Rol", selection: $selectedRole) {
@@ -78,7 +74,6 @@ struct RegisterView: View {
                     .pickerStyle(.segmented)
                 }
 
-                // Materias (solo si Profesor)
                 if selectedRole == .profesor {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Materias que ofreces").font(.headline)
@@ -107,7 +102,6 @@ struct RegisterView: View {
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                         } else {
-                            // Lista simple con opción de borrar
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(subjects, id: \.self) { s in
                                     HStack {
@@ -131,7 +125,6 @@ struct RegisterView: View {
                     }
                 }
 
-                // Botón crear cuenta
                 Button {
                     register()
                 } label: {
@@ -147,7 +140,6 @@ struct RegisterView: View {
                 }
                 .disabled(isRegisterDisabled)
 
-                // Volver
                 Button(role: .cancel) {
                     dismiss()
                 } label: {
@@ -199,8 +191,6 @@ struct RegisterView: View {
                 if let error = error {
                     errorMessage = "Error: \(error.localizedDescription)"
                 } else if success {
-                    // El listener del AuthViewModel actualizará el estado y
-                    // la navegación padre debería reaccionar. Cerramos esta vista.
                     dismiss()
                 }
             }
@@ -208,7 +198,6 @@ struct RegisterView: View {
     }
 }
 
-// MARK: - ErrorBanner
 private struct ErrorBanner: View {
     let text: String
     var body: some View {

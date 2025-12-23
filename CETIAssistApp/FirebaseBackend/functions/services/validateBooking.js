@@ -8,11 +8,6 @@
 const admin = require("firebase-admin");
 const db = admin.firestore();
 
-/**
- * Verifica si una disponibilidad aún está disponible
- * @param {string} availabilityId
- * @returns {Promise<boolean>}
- */
 async function isAvailabilityAvailable(availabilityId) {
   const doc = await db.collection("availability").doc(availabilityId).get();
   if (!doc.exists) return false;
@@ -21,12 +16,6 @@ async function isAvailabilityAvailable(availabilityId) {
   return data.isAvailable === true;
 }
 
-/**
- * Verifica si el alumno ya ha reservado esa disponibilidad
- * @param {string} studentId
- * @param {string} availabilityId
- * @returns {Promise<boolean>}
- */
 async function hasStudentAlreadyReserved(studentId, availabilityId) {
   const snapshot = await db.collection("reservations")
     .where("studentId", "==", studentId)
@@ -36,12 +25,6 @@ async function hasStudentAlreadyReserved(studentId, availabilityId) {
   return !snapshot.empty;
 }
 
-/**
- * Valida que se pueda realizar una reserva
- * @param {string} studentId
- * @param {string} availabilityId
- * @returns {Promise<{ valid: boolean, message?: string }>}
- */
 async function validateBooking(studentId, availabilityId) {
   const isAvailable = await isAvailabilityAvailable(availabilityId);
   if (!isAvailable) {

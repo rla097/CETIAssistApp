@@ -16,7 +16,6 @@ class AuthService {
     private let auth = FirebaseManager.shared.auth
     private let firestore = FirebaseManager.shared.firestore
 
-    // MARK: - Registro
     func registerUser(email: String, password: String, role: String, completion: @escaping (Result<Void, Error>) -> Void) {
         auth.createUser(withEmail: email, password: password) { result, error in
             if let error = error {
@@ -46,7 +45,6 @@ class AuthService {
         }
     }
 
-    // MARK: - Login
     func loginUser(email: String, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
         auth.signIn(withEmail: email, password: password) { result, error in
             if let error = error {
@@ -57,7 +55,6 @@ class AuthService {
         }
     }
 
-    // MARK: - Logout
     func logoutUser(completion: @escaping (Result<Void, Error>) -> Void) {
         do {
             try auth.signOut()

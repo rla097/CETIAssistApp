@@ -8,7 +8,7 @@
 import Foundation
 
 struct AppUser: Identifiable {
-    let id: String      // UID de Firebase Auth
+    let id: String
     let email: String
-    let role: String    // "alumno" o "profesor"
+    let role: String
 }

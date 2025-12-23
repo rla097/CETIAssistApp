@@ -28,26 +28,21 @@ private extension DateFormatter {
 }
 
 extension Availability {
-    /// Mapeo tolerante: acepta `subject` o `subjectName`, y convierte `isBooked` → `isAvailable`.
     static func from(document: DocumentSnapshot) -> Availability? {
         let data = document.data() ?? [:]
 
-        // Identidad profesor
         let professorId   = (data["professorId"] as? String) ?? ""
         let professorName = (data["professorName"] as? String) ?? "Profesor"
 
-        // Materia (acepta dos nombres)
         let subjectAny = (data["subject"] as? String) ?? (data["subjectName"] as? String)
         let subject    = (subjectAny?.isEmpty == false) ? subjectAny! : "Sin materia"
 
-        // Disponibilidad: prioridad a isAvailable; si no existe, usa !isBooked; si ninguno, true
         let isAvailable: Bool = {
             if let v = data["isAvailable"] as? Bool { return v }
             if let booked = data["isBooked"] as? Bool { return !booked }
             return true
         }()
 
-        // Hora/fecha
         var dateStr  = data["date"] as? String
         var startStr = data["startTime"] as? String
         var endStr   = data["endTime"] as? String
@@ -61,12 +56,10 @@ extension Availability {
             endStr   = DateFormatter.hm.string(from: end)
         }
 
-        // Necesitamos estos tres para renderizar
         guard let date = dateStr, let start = startStr, let end = endStr else {
             return nil
         }
 
-        // Modalidad / aula (con defaults)
         let modalityRaw = (data["modality"] as? String) ?? "virtual"
         let modality    = Modality(rawValue: modalityRaw) ?? .virtual
         let aulaValue   = data["aula"] as? String

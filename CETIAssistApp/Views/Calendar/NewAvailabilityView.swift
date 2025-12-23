@@ -9,25 +9,17 @@ import SwiftUI
 import FirebaseAuth
 
 struct NewAvailabilityView: View {
-    // Ya no dependemos de AuthViewModel
     @Environment(\.dismiss) private var dismiss
     @StateObject private var availabilityVM = AvailabilityViewModel()
 
-    // Materias (si pasas lista, Picker; si no, TextField)
     let availableSubjects: [String]
     @State private var selectedSubjectIndex: Int = 0
     @State private var subjectText: String = ""
-
-    // Fecha y horas
     @State private var selectedDate: Date = Date()
     @State private var startTime: Date = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var endTime: Date = Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: Date()) ?? Date()
-
-    // Modalidad / Aula
     @State private var modality: Modality = .virtual
     @State private var aula: String = ""
-
-    // UI state
     @State private var isSaving: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertTitle: String = ""
@@ -40,7 +32,6 @@ struct NewAvailabilityView: View {
     var body: some View {
         NavigationView {
             Form {
-                // Materia
                 Section("Materia") {
                     if availableSubjects.isEmpty {
                         TextField("Nombre de la materia", text: $subjectText)
@@ -54,14 +45,12 @@ struct NewAvailabilityView: View {
                     }
                 }
 
-                // Fecha y horario
                 Section("Fecha y horario") {
                     DatePicker("Fecha", selection: $selectedDate, displayedComponents: .date)
                     DatePicker("Inicio", selection: $startTime, displayedComponents: .hourAndMinute)
                     DatePicker("Fin", selection: $endTime, displayedComponents: .hourAndMinute)
                 }
 
-                // Modalidad
                 Section("Modalidad") {
                     Picker("Modalidad", selection: $modality) {
                         Text("Virtual").tag(Modality.virtual)
@@ -76,7 +65,6 @@ struct NewAvailabilityView: View {
                     }
                 }
 
-                // Error del VM (si existe)
                 if let vmError = availabilityVM.errorMessage, !vmError.isEmpty {
                     Section {
                         Text(vmError)
@@ -104,8 +92,7 @@ struct NewAvailabilityView: View {
             }
         }
     }
-
-    // MARK: - Helpers
+    
     private func formatDate(_ date: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
         let tz = TimeZone(secondsFromGMT: 0) ?? TimeZone.current
@@ -122,9 +109,7 @@ struct NewAvailabilityView: View {
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
-    // MARK: - Publicar
     private func publish() {
-        // ✅ Tomamos el usuario directo de FirebaseAuth
         guard let user = Auth.auth().currentUser else {
             show("Error", "No hay sesión iniciada.")
             return
@@ -145,7 +130,6 @@ struct NewAvailabilityView: View {
             return
         }
 
-        // Protege fin > inicio
         var start = startTime
         var end = endTime
         if end <= start, let plusHour = Calendar.current.date(byAdding: .hour, value: 1, to: start) {

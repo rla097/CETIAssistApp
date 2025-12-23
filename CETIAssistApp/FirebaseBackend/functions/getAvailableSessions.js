@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 
 exports.getAvailableSessions = functions.https.onCall(async (data, context) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Comienza desde el inicio del día actual
+  today.setHours(0, 0, 0, 0);
 
   const snapshot = await admin.firestore().collection("asesorias").get();
 
@@ -26,10 +26,8 @@ exports.getAvailableSessions = functions.https.onCall(async (data, context) => {
     const fecha = asesoría.fecha?.toDate ? asesoría.fecha.toDate() : new Date(asesoría.fecha);
 
     if (fecha < today) {
-      // 🔴 eliminar asesorías pasadas
       batch.delete(doc.ref);
     } else {
-      // 🟢 conservar asesorías futuras
       validSessions.push({
         id: doc.id,
         ...asesoría,

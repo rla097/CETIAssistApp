@@ -25,9 +25,8 @@ struct Availability: Identifiable {
     let isAvailable: Bool
     let subject: String
 
-    // NUEVO
     let modality: Modality
-    let aula: String?     // solo si modality == .presencial
+    let aula: String?
 
     init(
         id: String,

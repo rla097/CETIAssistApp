@@ -12,7 +12,6 @@ struct StudentHomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var showSignOutConfirm = false
 
-    // MARK: - Nombre del alumno (desde FirebaseAuth)
     private var fullName: String {
         if let n = Auth.auth().currentUser?.displayName, !n.trimmingCharacters(in: .whitespaces).isEmpty {
             return n
@@ -44,7 +43,6 @@ struct StudentHomeView: View {
                     VStack(spacing: 20) {
                         headerCard
 
-                        // CTA principal: ver asesorías disponibles
                         NavigationLink {
                             CalendarView()
                         } label: {
@@ -57,7 +55,6 @@ struct StudentHomeView: View {
                         .buttonStyle(.plain)
                         .padding(.horizontal)
 
-                        // 🔴 ÚNICO botón de cerrar sesión (card roja grande)
                         Button {
                             showSignOutConfirm = true
                         } label: {
@@ -77,7 +74,6 @@ struct StudentHomeView: View {
             }
             .navigationTitle("Bienvenido \(firstName)")
             .navigationBarTitleDisplayMode(.inline)
-            // ❌ Sin botón de toolbar de cerrar sesión
             .alert("Cerrar sesión", isPresented: $showSignOutConfirm) {
                 Button("Cancelar", role: .cancel) {}
                 Button("Cerrar sesión", role: .destructive) {
@@ -89,7 +85,6 @@ struct StudentHomeView: View {
         }
     }
 
-    // MARK: - Header con gradiente
     private var headerCard: some View {
         ZStack {
             LinearGradient(
@@ -126,8 +121,6 @@ struct StudentHomeView: View {
         .frame(maxWidth: .infinity, minHeight: 110)
     }
 }
-
-// MARK: - Componentes auxiliares
 
 private struct PrimaryCTA: View {
     let title: String
@@ -175,7 +168,6 @@ private struct DestructiveCTA: View {
     let subtitle: String
     let systemImage: String
 
-    // ✅ Init con `subtitle` opcional (default vacío)
     init(title: String, systemImage: String, subtitle: String = "") {
         self.title = title
         self.systemImage = systemImage

@@ -8,7 +8,6 @@
 const nodemailer = require("nodemailer");
 const functions = require("firebase-functions");
 
-// 🔐 Puedes almacenar estas credenciales en funciones.config()
 const gmailEmail = functions.config().gmail.email;
 const gmailPassword = functions.config().gmail.password;
 
@@ -20,11 +19,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-/**
- * Envía un correo con los datos proporcionados
- * @param {Object} mailOptions
- * @returns {Promise}
- */
 function sendEmail(mailOptions) {
   return transporter.sendMail(mailOptions);
 }

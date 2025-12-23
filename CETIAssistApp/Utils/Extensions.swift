@@ -8,8 +8,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Date Formatting
-
 extension Date {
     func toDateString(format: String = "yyyy-MM-dd") -> String {
         let formatter = DateFormatter()
@@ -24,15 +22,11 @@ extension Date {
     }
 }
 
-// MARK: - Optional String Validation
-
 extension Optional where Wrapped == String {
     var isNilOrEmpty: Bool {
         return self?.isEmpty ?? true
     }
 }
-
-// MARK: - Hide Keyboard in SwiftUI
 
 #if canImport(UIKit)
 extension View {
@@ -42,8 +36,6 @@ extension View {
     }
 }
 #endif
-
-// MARK: - Binding onChange Handler
 
 extension Binding {
     func onChange(_ handler: @escaping (Value) -> Void) -> Binding<Value> {
